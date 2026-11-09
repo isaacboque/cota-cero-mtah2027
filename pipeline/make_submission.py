@@ -1,0 +1,72 @@
+"""Team Cota Cero: possession file v1 (nearest player to the ball + majority-vote smoothing).
+
+One command regenerates the submission byte for byte:
+
+    python pipeline/make_submission.py                 # writes submissions/cota-cero_v1.csv
+    python evaluation/validate_submission.py submissions/cota-cero_v1.csv
+
+v1 reuses the organisers' reference steps (starter/baseline.py) with a +/-50 frame window. That
+window is the one the organisers publish as best on the FULL match (EVALUATION.md); it was not
+chosen by looking at the public 5-minute window, which the rules forbid for tuning.
+
+The only thing added here is the file contract: the CSV is always written with "\\n" line endings,
+so the same input gives the same sha256 on Windows, macOS and Linux (the organisers' writer uses
+the platform default, which is CRLF on Windows).
+"""
+
+import argparse
+import hashlib
+import os
+import sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)
+sys.path.insert(0, ROOT)
+sys.path.insert(0, os.path.join(ROOT, "starter"))
+
+import baseline  # noqa: E402
+
+TEAM = "cota-cero"
+VERSION = "v1"
+WINDOW = 50  # half-width of the majority vote, in frames (2 s each side at 25 fps)
+OUT_DIR = os.path.join(ROOT, "submissions")
+
+
+def write_csv(path, labels):
+    """frame,label CSV with LF line endings on every platform."""
+    folder = os.path.dirname(path)
+    if folder and not os.path.isdir(folder):
+        os.makedirs(folder)
+    with open(path, "w", newline="\n") as handle:
+        handle.write("frame,label\n")
+        handle.writelines("{},{}\n".format(frame, label) for frame, label in enumerate(labels))
+    return path
+
+
+def sha256(path):
+    digest = hashlib.sha256()
+    with open(path, "rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--window", type=int, default=WINDOW)
+    parser.add_argument("--out", default=OUT_DIR)
+    args = parser.parse_args()
+
+    codes = baseline.build()
+    labels = baseline.smooth(codes, args.window)
+    path = write_csv(os.path.join(args.out, "{}_{}.csv".format(TEAM, VERSION)), labels)
+
+    counts = {label: int((labels == label).sum()) for label in ("H", "A", "D")}
+    print("wrote {}".format(os.path.relpath(path, ROOT)))
+    print("rows {}  H {}  A {}  D {}".format(len(labels), counts["H"], counts["A"], counts["D"]))
+    print("sha256 {}".format(sha256(path)))
+    print("next: python evaluation/validate_submission.py {}".format(os.path.relpath(path, ROOT)))
+
+
+if __name__ == "__main__":
+    main()
