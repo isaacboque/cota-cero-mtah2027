@@ -25,4 +25,19 @@ The CSV is always written with LF line endings, so the sha256 printed by the fir
 - `evaluation/`, `starter/`, `games.py`: organisers' scorer, loaders and baselines (MIT, see `LICENSE-metrica-sports`)
 - `SUBMISSIONS.md`: log of every file validated or submitted
 
+## Read first (organisers' documents)
+
+Everyone on the team reads these before touching anything. They live in the official repo and are not copied here, so they stay current:
+
+- [CHALLENGE.md](https://github.com/metrica-sports/more-than-a-hack-2027/blob/main/CHALLENGE.md): the task, the four labels, what counts as possession
+- [RULES.md](https://github.com/metrica-sports/more-than-a-hack-2027/blob/main/RULES.md): what is forbidden (no hand labels on the provided match, no tuning on the public 5 minutes)
+- [EVALUATION.md](https://github.com/metrica-sports/more-than-a-hack-2027/blob/main/EVALUATION.md): how spellF1 and macroF1 work
+- [SUBMISSION.md](https://github.com/metrica-sports/more-than-a-hack-2027/blob/main/SUBMISSION.md): the three deliverables and the form
+- [DATA.md](https://github.com/metrica-sports/more-than-a-hack-2027/blob/main/DATA.md): every asset and how frames line up
+- [FAQ.md](https://github.com/metrica-sports/more-than-a-hack-2027/blob/main/FAQ.md)
+
+## Data
+
+Not in git. Each person downloads `BAR-ATH_tactical_atd.txt`, `_atd.xml`, `_homography.csv` and `_smart_tagging.xml` from the organisers' Drive folder into `data/tactical/`.
+
 Upstream: https://github.com/metrica-sports/more-than-a-hack-2027
