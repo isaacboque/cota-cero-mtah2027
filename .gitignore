@@ -1,0 +1,28 @@
+# Public repository. The match data is gated and must never be committed or redistributed.
+data/*
+!data/README.md
+*.mp4
+*.gzip
+*.pl3container
+
+# Full-match ground truth (organisers only) and generated output
+*_possession_gt.csv
+*_possession_gt_meta.json
+*_possession_gt_reference.csv
+possession_by_frame.pkl
+evaluation/reports/
+evaluation/scoreboard.csv
+
+# Any file in evaluation/results/ is a full-match label set; only the shipped baselines are tracked
+evaluation/results/*.csv
+!evaluation/results/baseline_*.csv
+
+# Editors and build artifacts
+.idea/
+.vscode/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.DS_Store
