@@ -54,3 +54,10 @@ Template:
 - Data used to choose it: none (synthetic tests only).
 - Compliance check: no BAR-ATH data read or run by Claude Code; no GT, no video.
 - Owner: Isaac
+
+## 2026-11-10 — Features and dead-ball detector constants (T5)
+- Decision: `pipeline/features.py` (team-level, identity-free features; speeds derived from positions) and `pipeline/deadball.py` (score = weighted sum of: out of bounds with hysteresis, global slowdown, long ball-missing run ending static; hard D outside the halves and from 2nd-half grading start to kick-off). All constants in `pipeline/config.py`.
+- Source per constant: `FPS`, `PITCH`, `KICKOFF_2ND`=113742 = organiser (games.py, FAQ). `OOB_MARGIN_M`=0.5 = Laws of the Game (ball out when wholly over the line) plus tracking-noise margin, to tune. To tune on IDSSE leave-one-match-out CV (placeholders until then, not set from BAR-ATH GT or video): `R_PRESSURE_M`=5.0, `TURN_MIN_SPEED_MS`=2.0, `OOB_ENTER_FRAMES`=5, `OOB_EXIT_FRAMES`=10, `SLOW_TEAM_SPEED_MS`=1.0, `SLOW_MIN_S`=4.0, `BALL_STATIC_MS`=1.0, `MISSING_RUN_MIN_S`=3.0, `STATIC_WINDOW_FRAMES`=12, `W_OOB`=1.0, `W_SLOW`=0.6, `W_MISSING_STATIC`=0.6, `DEAD_THRESHOLD`=0.5.
+- Data used to choose it: none (synthetic tests only).
+- Compliance check: no BAR-ATH data read or run; no GT; Smart Tagging cues not used here (T7).
+- Owner: Isaac
