@@ -23,6 +23,7 @@ If a request would break one of these, stop and say which rule.
 - `docs/llm/05-decisions-log.md` — dated decisions and their compliance rationale
 - `docs/llm/06-compliance-checklist.md` — run before every PR/submission
 - `docs/llm/07-roadmap.md` — schedule, approach ladder, Round 2 outline, open questions
+- `docs/team-plan.md` — team roles, rituals, day-by-day plan, submission runbook
 - `docs/llm/08-model-plan.md` — model architecture, external data (IDSSE), work split, timeline, Claude Code task queue
 
 Organisers' docs (CHALLENGE, RULES, EVALUATION, SUBMISSION, DATA, FAQ) are linked from `README.md`, not copied. They win over anything here if they disagree.

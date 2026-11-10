@@ -104,6 +104,7 @@ Printed by `validate_submission.py` and a new `pipeline/report.py`, run and read
 - Determinism: two runs give the same sha256.
 
 ## 6. Work split (proposal, adjust in the team chat)
+Team-level plan (onboarding, rituals, day-by-day per person, submission runbook): [`docs/team-plan.md`](../team-plan.md).
 | Stream | Owner (proposal) | Output |
 |---|---|---|
 | A. Pipeline skeleton, loader, cache, writer, report | Isaac + Claude Code | `pipeline/data.py`, `report.py`, `make_submission.py --version` |
