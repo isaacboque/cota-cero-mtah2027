@@ -7,16 +7,21 @@ For every frame of one LaLiga match (**BAR-ATH**, tactical recording) output one
 
 Output: CSV `frame,label`, row *i* = frame *i* of `BAR-ATH_tactical.mp4`, **199 319 rows**, LF line endings, validated by `evaluation/validate_submission.py`. Frame rate is 25 fps (±50 frames = ±2 s).
 
+## Competition context
+Organisers: Mobile World Capital Barcelona, Barça Innovation Hub, Metrica Sports. Teams of 3–5. Initial Challenge ranking is automatic and objective. Only the top 20 go on to the Innovation Challenge, only the top 5 to the final. Schedule and Round 2 outline: [07-roadmap.md](07-roadmap.md).
+
 ## Metrics
 `spellF1` (segment/spell level) and `macroF1` (frame level). They can rank the same files differently: smoothing windows that barely move macroF1 change spellF1 a lot. Details: upstream `EVALUATION.md`.
 
 ## Assets (gated, never committed, never sent to AI)
 Live in `data/tactical/` or `$MTAH_DATA_DIR`:
-- `BAR-ATH_tactical.mp4` — reference timeline (video)
-- `BAR-ATH_tactical_atd.txt` / `_atd.xml` — automatic tracking data, players + ball, and its metadata
-- `BAR-ATH_tactical_homography.csv` — one 3×3 matrix per frame
+- `BAR-ATH_tactical.mp4` (~5.2 GB) — reference timeline (video)
+- `BAR-ATH_tactical_atd.txt` (~195 MB) / `_atd.xml` — automatic tracking data, players + ball, and its metadata
+- `BAR-ATH_tactical_homography.csv` (~23 MB) — one 3×3 matrix per frame
 - `BAR-ATH_tactical_smart_tagging.xml` — 638 tactical phases and set pieces
-- `data/broadcast/*` — optional, **not** synchronised to the tactical timeline
+- `data/broadcast/*` (video ~14 GB, atd.txt ~142 MB, homography ~15 MB) — optional, **not** synchronised to the tactical timeline
+
+Provenance: tracking and Smart Tagging come from Metrica Sports; video from Barça Innovation Hub. The organisers say no detection, identification or camera calibration needs to be built — tracking and homography are given.
 
 All paths are derived in `games.py` (`asset_paths(source="tactical"|"broadcast")`). Never hard-code a path elsewhere.
 
