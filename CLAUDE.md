@@ -29,6 +29,9 @@ If a request would break one of these, stop and say which rule.
 
 Organisers' docs (CHALLENGE, RULES, EVALUATION, SUBMISSION, DATA, FAQ) are linked from `README.md`, not copied. They win over anything here if they disagree.
 
+## Skills (use them by default)
+Matt Pocock's engineering skills (plugin `mattpocock-skills`) and Isaac's `ship` / `session-wrap` drive the workflow; which one for what is in `docs/llm/09-claude-code-playbook.md` §9. Defaults: build every change with `tdd`; close with `code-review` then `pr` (PR body) before opening the PR; hard bugs → `diagnosing-bugs`; design questions → `prototype` on IDSSE/synthetic data. Domain words come from `GLOSSARY.md`, big decisions go to ADRs (`docs/adr/`) and the decisions log. No skill may read, run on or quote BAR-ATH data, and `research` uses public sources only.
+
 ## Commands
 ```bash
 pip install -r requirements.txt

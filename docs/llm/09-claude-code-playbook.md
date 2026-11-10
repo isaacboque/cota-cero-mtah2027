@@ -68,10 +68,35 @@ Every item stands alone (the run has no memory):
 ```
 - [ ] cota-cero-mtah2027: <Tn title>. Read CLAUDE.md, docs/llm/01-rules.md and 08-model-plan.md §<x> first.
   Never read data/, evaluation/gt/, submissions/ or label CSVs; never run pipeline, scorer, validator or starter scripts.
-  Goal: <exact goal>. Files: <paths>. Follow: <existing pattern>.
-  Verify: python -m pytest -q <tests>. Done = branch feat/<slug> pushed, PR with template filled,
+  Goal: <exact goal> (ticket docs/tickets/<id> if it exists). Files: <paths>. Follow: <existing pattern>.
+  Skills: build with `tdd`; before the PR run `code-review`, then write the body with `pr`; hard bug → `diagnosing-bugs`.
+  Verify: pytest cota-cero-mtah2027/tests (unattended runs start in Projects/, use git -C / gh -R). Done = branch feat/<slug> pushed, PR with template filled,
   decisions-log line if a parameter was set. Product/rules decision → smallest option, flag it in RESULTS.md.
 ```
+
+## 9. Skills: which one for what
+Install once per machine: `claude plugin install mattpocock-skills@claude-plugins-official`. Then, in an interactive session in the data-free clone, run `/setup-matt-pocock-skills` once and answer: issue tracker = **local files** (`docs/tickets/`, so the unattended runner can edit them and teammates see them in the repo), docs location = `docs/` (`GLOSSARY.md` at the repo root, ADRs in `docs/adr/`). Commit what it writes.
+
+User-invoked skills (`/name`) only work in interactive sessions. Model-invoked ones also work in unattended handoffs: name them in the task ("use the `tdd` skill").
+
+| Moment | Skill | How we use it here |
+|---|---|---|
+| Start of a stream or a fuzzy task | `/grill-with-docs` | Grill the plan in `08-model-plan.md` before coding. First run: build `GLOSSARY.md` (possession, spell, control, dead ball, restart, graded frame, degraded IDSSE) and ADRs: 0001 no tuning on the public window, 0002 IDSSE as external tuning data, 0003 no `X` on graded frames, 0004 data never reaches an LLM. |
+| Plan → tickets | `/to-tickets` | Turn T3–T10 into tracer-bullet tickets with blocking edges in `docs/tickets/`. Handoff items then point at a ticket id instead of repeating the whole spec. |
+| Work too big for one session | `/wayfinder` | Decoder design (T8) if it splits into several open decisions. |
+| Design question | `prototype` | Throwaway answer to "rules vs HMM", "which control definition", on IDSSE or synthetic data only. |
+| Building | `tdd` | Default for every code change: red → green → refactor, one vertical slice. Tests use synthetic data or IDSSE. |
+| Building several tickets | `/implement`, `/implement-spec` | Interactive sessions; they call `tdd` and finish with `code-review`. |
+| Before every PR | `code-review`, then `pr` | Review on Standards and Spec (spec = our rules + plan); `pr` writes the body with evidence and a merge-risk call. Our PR template checklist still applies. |
+| Hard bug | `diagnosing-bugs` | Ends in a regression test. Reproduce on synthetic/IDSSE, never on BAR-ATH. |
+| Background reading | `research` | Literature on possession detection from tracking, HMM/semi-Markov segmentation. Public sources only; saves a cited file under `docs/research/`. |
+| Architecture check (Sat) | `/improve-codebase-architecture` | Once v2 exists, before the decoder lands. |
+| Team decision you can't make alone | `/to-questionnaire` | E.g. our written definition of "control", or a question for the organisers. |
+| End of an interactive session | `/handoff`, then `session-wrap`, then `/retro` | `/handoff` writes the continuation doc under `docs/agents/handoffs/` (no BAR-ATH numbers in it); `session-wrap` updates the vault note; `/retro` improves this setup. |
+| Commit/push in Isaac's Projects flow | `ship` | Runs `test-runner` and `code-reviewer`; for this repo the test command is `pytest cota-cero-mtah2027/tests`. |
+| Editing CLAUDE.md or these docs | `writing-for-agents` | Keep them short and agent-readable. |
+
+Not used: `/triage` (no issue tracker), `wizard` (BAR-ATH steps are human-only and PowerShell). If the plugin is missing in a run, carry on without it and say so in the PR.
 
 ## 8. Reading results and reviewing
 - Phone: notification + vault `Handoff Digest`. PC: `_handoff/DIGEST.md`, detail in `RESULTS.md`.
