@@ -24,6 +24,17 @@ Principle (verbatim spirit): **anything that is not explicitly allowed is not pe
 - Drive access is individual (within 72 h of registering).
 - Submission instructions: to be sent by the organisers; check `SUBMISSION.md` upstream.
 
+## Additions from the organisers' repo documents (read 10 Nov 2026)
+- `RULES.md`: any method is allowed if organisers can access and inspect it and the technical document explains it; pre-trained models, LLMs (hosted or local), commercial APIs and external data are allowed. A private in-house model or unavailable internal dataset is the one thing ruled out — ask first.
+- `RULES.md`: improving or replacing the provided tracking/tagging/homography is explicitly legitimate.
+- `RULES.md`: do not use the full-match ground truth, or anything derived from it, "beyond the 5 minutes published in this repository".
+- `RULES.md`: running our repo on the provided data must reproduce our submission — "not approximately, the same file".
+- `RULES.md`: do not redistribute the data, **nor publish derived data that would reconstruct it** (frame-level tracking exports, clipped video, and similar). Our submission CSV is a label set, not tracking, but never commit intermediate frame-level exports of tracking or video.
+- Enrolment terms (not `RULES.md`) are the final authority on what is permitted.
+
+### Known tension, resolved conservatively
+`RULES.md` is silent on whether the public 5 minutes may be used for tuning/validation, and says small hand-labelled sets used to train/validate are "fine and normal". The organisers' 10 Nov email is stricter and later: no hand labels or manual data on the provided game, and no training/fitting/calibrating on ground-truth possession data. **We follow the stricter reading**: the public window is for scorer sanity and for reading the definition of possession, never for choosing parameters, features or versions. If the team ever wants a looser reading, ask the organisers in writing first (open an issue upstream, as `RULES.md` suggests).
+
 ## What this means for an LLM/agent in this repo
 1. **Data never enters your context.** "Uploading the provided data to AI services" includes pasting rows, printing file heads, or reading `data/**` with a tool. Allowed: reading code, file names, shapes/dtypes, counts and aggregate numbers that code computed locally and that reveal no per-frame content. When in doubt, write a script for the human to run and discuss only the summary they paste back.
 2. **No ground truth in the loop.** `evaluation/gt/*_public*` (5-minute public window) exists for the organisers' scorer. Do not use it to select features, windows, thresholds or model versions. Reporting a score is fine; deciding by it is not. Do not write code that reads it inside `pipeline/`.
