@@ -11,6 +11,8 @@
 Teams under 3 members cannot advance past the Initial Challenge. Prizes: travel/stay for the final, FC Barcelona shirts and experience; no cash.
 
 ## Approach ladder for the Initial Challenge
+Detailed, current version: [08-model-plan.md](08-model-plan.md). The list below is the earlier summary.
+
 Each rung must be justified by an organiser document, literature or **external** data (see `01-rules.md`). Log each in `05-decisions-log.md`.
 
 1. **v1 (done):** nearest tracked player to the ball, majority vote ±50 frames.

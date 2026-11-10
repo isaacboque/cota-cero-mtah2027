@@ -23,6 +23,6 @@ docs/llm/                   this documentation
 
 Where new work goes:
 - New method/features → `pipeline/` (new module + wired into a `make_submission`-style entry point; keep one command that regenerates each version).
-- External training/tuning data and scripts → `external/` (create it; document each dataset's source and license in `05-decisions-log.md`; keep raw external data out of git unless its license allows redistribution).
+- External training/tuning data and scripts → `external/` (raw data in `data/external/`, gitignored) (create it; document each dataset's source and license in `05-decisions-log.md`; keep raw external data out of git unless its license allows redistribution).
 - Tests on synthetic data → `tests/`.
 - Intermediate-step files (allowed to be provided) → `outputs/intermediate/`, only if they contain no gated data or label set; otherwise gitignored and shared via the submission form.
