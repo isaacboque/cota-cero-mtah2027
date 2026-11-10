@@ -47,3 +47,10 @@ Template:
 - Data used to choose it: none (synthetic tests only); first real IDSSE CV run is for an interactive session.
 - Compliance check: no BAR-ATH data, no `evaluation/gt/`, no run of `run_evaluation.py`.
 - Owner: Isaac
+
+## 2026-11-10 — IDSSE degradation to BAR-ATH input conditions (T4)
+- Decision: `external/degrade.py` removes the ball on alive frames in contiguous gaps (gap-length histogram as parameter) until 41% of alive frames are missing, adds Gaussian position noise and drops/duplicates player slots; deterministic per seed; `gt_codes` never touched. `external/barath_gap_stats.py` (run by a human only) writes `data/cache/degrade_params.json`.
+- Source / justification: DATA.md (ball missing on 41% of graded frames), `08-model-plan.md` section 3: degradation parameters come from aggregate statistics of the BAR-ATH input tracking (allowed automatic check; never GT or video), computed by a human; nothing is pasted into an AI. Defaults in `DEFAULT_PARAMS` (noise sigma, duplicate rate, gap bins) are placeholders until that file exists.
+- Data used to choose it: none (synthetic tests only).
+- Compliance check: no BAR-ATH data read or run by Claude Code; no GT, no video.
+- Owner: Isaac
