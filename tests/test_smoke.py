@@ -8,3 +8,9 @@ def test_half_video_blocks():
 
 def test_source_frames():
     assert games.source_frames("tactical") == 199319
+
+
+def test_make_submission_imports_without_data():
+    # Import only: nothing is read or run (main() is guarded).
+    import pipeline.make_submission as ms
+    assert callable(ms.main)

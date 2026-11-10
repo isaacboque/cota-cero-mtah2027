@@ -3,7 +3,7 @@
 ## Branches and PRs
 - Never commit to `main`. Branch names: `feat/…`, `fix/…`, `docs/…`.
 - Open a PR for every pushed work branch; fill the template (`.github/pull_request_template.md`).
-- There is currently no CI. Merge only when the owner (Isaac) approves; otherwise leave the PR open.
+- CI (`.github/workflows/ci.yml`) runs pytest and the baseline scorer on Python 3.11 and 3.12. Merge only when the owner (Isaac) approves; otherwise leave the PR open.
 - Commit messages: imperative, short subject; body states the *source* of any parameter choice.
 
 ## Producing a new submission version
