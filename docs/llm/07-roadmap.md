@@ -35,12 +35,12 @@ Related methods worth referencing in the decisions log: homography use for pitch
 ## Closed (10 Nov 2026, from upstream docs)
 - Label meanings and possession rules: see `02-task-and-data.md`.
 - Deliverables, form fields, file naming, one editable response per team: see `04-workflow.md`.
+- Dependencies: `numpy`/`pandas` pinned in `requirements.txt` (PR #3). Any new dependency must be pinned too.
 - Score visibility: **no live leaderboard and no feedback**; only the public 5-minute window and the validator exist before the deadline.
 
 ## Still open
 - Cut-off hour/timezone on 17 Nov: upstream `SUBMISSION.md`, `OVERVIEW.md` and `README.md` (checked 10 Nov) state only the date. Upstream GitHub issues could not be read from here; check them by hand or ask by email.
 - Exact spelling of `<team_name>` in file names: team name is "Cota Cero" but our files use `cota-cero`. Upstream only says to name files after the team (`<team_name>.csv`/`.pdf`; the scoreboard labels each row by file name) and that the form's Team Name must match registration. Proposal if no answer: `Cota Cero.csv` / `Cota Cero.pdf`, exactly as registered. Ask the organisers.
-- `requirements.txt` is unpinned (`numpy`, `pandas`); `SUBMISSION.md` asks for pinned dependencies. Pin versions in a PR (and test on the Python versions the scorer supports).
 - Technical document is not written yet (`docs/technical-document.md` is a skeleton).
 - External datasets we could legitimately use for training/tuning (name, license) — none recorded yet.
 
