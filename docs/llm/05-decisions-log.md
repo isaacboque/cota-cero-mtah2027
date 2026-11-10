@@ -68,3 +68,10 @@ Template:
 - Data used to choose it: none; synthetic tests only. The IDSSE CV table for v1 vs v2 is pending: no IDSSE files were available in the unattended run.
 - Compliance check: no BAR-ATH data read or run; v2 on BAR-ATH is generated and validated by a human.
 - Owner: Isaac
+
+## 2026-11-10 — Smart Tagging restart cues (T7)
+- Decision: `pipeline/restarts.py` turns SET PIECES (throw-in, corner, goal kick, free kick, kick-off) and GOALS into sorted `(frame, team_or_None, type)` events and a pre-restart mask. These cues are **evidence, not truth**: Smart Tagging is automatic, has false positives/negatives, and its window is accurate to about a second. Not wired into v2 here.
+- Source / justification: `08-model-plan.md` sections 1 (Smart Tagging row) and 2.3; organiser loader `starter/load_smart_tagging.py` (frame = round(s*25)). Club -> side map is supplied by the caller (the XML names clubs; home = first Team in the ATD metadata).
+- Data used to choose it: none; synthetic XML tests only (the real file was not opened).
+- Compliance check: no BAR-ATH data read or run.
+- Owner: Isaac
