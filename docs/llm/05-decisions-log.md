@@ -25,3 +25,11 @@ Template:
 - Data used to choose it: none (organiser-published figure).
 - Compliance check: no training, no GT access, no video check, no data sent to AI.
 - Owner: Isaac
+
+## 2026-11-10 — IDSSE adopted as external tuning data
+- Decision: use IDSSE (Bassek et al. 2025, *Scientific Data* 12:195; owner DFL; **CC BY 4.0**, cite it) as the external dataset for tuning/CV; adapter in `external/idsse.py`. `gt_codes`: H/A = ball alive and owner home/away, D = ball dead (kloppy `ball_state`).
+- Source / justification: `08-model-plan.md` §3; kloppy 3.18.0 sportec reader exposes per-frame `ball_state` and `ball_owning_team`. Its owner is home if the raw flag is 1 else away (never None), so the owner is only used on alive frames.
+- Data used to choose it: none from BAR-ATH.
+- Note: kloppy 3.18.0 lists 7 match IDs `J03WPY J03WMX J03WN1 J03WOH J03WOY J03WQQ J03WR9`; the plan's `J03WPF`/`J03WQF` are not in it. Figshare currently answers scripted downloads with a WAF challenge (empty body), so raw files may need a manual browser download into `data/external/idsse/<id>_meta.xml` and `<id>_tracking.xml`.
+- Compliance check: no GT, no video, no match data sent to AI.
+- Owner: Isaac
