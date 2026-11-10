@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(./data/**)",
+      "Read(./evaluation/gt/**)",
+      "Read(./submissions/**)",
+      "Read(./evaluation/results/*.csv)",
+      "Read(./evaluation/reports/**)",
+      "Edit(./data/**)",
+      "Bash(python pipeline/make_submission.py:*)",
+      "Bash(python evaluation/run_evaluation.py:*)",
+      "Bash(python evaluation/validate_submission.py:*)",
+      "Bash(python starter/:*)",
+      "Bash(python external/barath_gap_stats.py:*)",
+      "Bash(jupyter:*)"
+    ]
+  }
+}

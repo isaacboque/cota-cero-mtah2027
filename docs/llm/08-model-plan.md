@@ -126,6 +126,12 @@ Rule: if v3 is not clearly better on IDSSE CV by Sunday, ship v2.
 4. Each task ends with: tests on synthetic data (`tests/`), a line in `05-decisions-log.md`, a PR with the template filled. No new dependency without noting it.
 
 ## 9. Claude Code task queue (in order; each one is a PR)
+How to run and hand these off, batches and setup: [`09-claude-code-playbook.md`](09-claude-code-playbook.md).
+
+- **T0 CI.** `.github/workflows/ci.yml`: on push/PR, Python 3.11 and 3.12, `pip install -r requirements.txt pytest`, then `python -m pytest -q` and `python evaluation/run_evaluation.py` (scores the shipped baselines; runs in GitHub's runner, never in CC). Add `tests/test_smoke.py` importing `games` and `pipeline.make_submission`. Acceptance: workflow green on the PR.
+How to run and hand these off, batches and setup: [`09-claude-code-playbook.md`](09-claude-code-playbook.md).
+
+- **T0 CI.** `.github/workflows/ci.yml`: on push/PR, Python 3.11 and 3.12, `pip install -r requirements.txt pytest`, then `python -m pytest -q` and `python evaluation/run_evaluation.py` (scores the shipped baselines, needs no data). Add `tests/test_smoke.py` importing `games` and `pipeline.make_submission`. Acceptance: workflow green on the PR.
 - **T1 Loader/cache.** `pipeline/data.py`: `load_match(source="barath"|"idsse", ...)` → dict of arrays as in §2.1, plus `halves`. Cache `.npz`. Test on a synthetic 3-line ATD file. Acceptance: shapes, NaN handling, frame offset (`frame_id - 1`).
 - **T2 IDSSE adapter (E1).** `external/idsse.py` with kloppy: same array interface, plus `gt_codes` (`H/A/D`) from ball status + owning team (home = first team). Report: share of frames with owner/status present. Acceptance: one match loads and its label counts print.
 - **T3 Metric harness.** `pipeline/cv.py`: score any label array against IDSSE `gt_codes` with `evaluation/possession_metrics.py` (import, do not copy), leave-one-match-out loop, results table to `external/results/` (gitignored). Acceptance: v1 logic scored on 7 IDSSE matches.

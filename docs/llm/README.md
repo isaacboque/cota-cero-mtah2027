@@ -12,5 +12,7 @@ Context for LLMs/agents (and humans) working on Cota Cero's More Than a Hack 202
 | [06-compliance-checklist.md](06-compliance-checklist.md) | Before every PR and every submission |
 | [07-roadmap.md](07-roadmap.md) | Planning time, choosing approaches, Round 2 |
 | [08-model-plan.md](08-model-plan.md) | Building the model: architecture, IDSSE tuning, tasks |
+| [09-claude-code-playbook.md](09-claude-code-playbook.md) | Running Claude Code: handoffs, batches, setup, prompts |
+| [09-claude-code-playbook.md](09-claude-code-playbook.md) | Running Claude Code: handoffs, batches, setup, prompts |
 
 Precedence: organisers' official documents > `01-rules.md` > everything else here. If the organisers' text and these files disagree, follow the organisers and fix these files.
