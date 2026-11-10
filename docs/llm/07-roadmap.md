@@ -38,8 +38,8 @@ Related methods worth referencing in the decisions log: homography use for pitch
 - Score visibility: **no live leaderboard and no feedback**; only the public 5-minute window and the validator exist before the deadline.
 
 ## Still open
-- Cut-off hour/timezone on 17 Nov (page states only the date).
-- Exact spelling of `<team_name>` in file names: team name is "Cota Cero" but our files use `cota-cero`. Confirm with the organisers whether spaces/capitals are expected before uploading.
+- Cut-off hour/timezone on 17 Nov: upstream `SUBMISSION.md`, `OVERVIEW.md` and `README.md` (checked 10 Nov) state only the date. Upstream GitHub issues could not be read from here; check them by hand or ask by email.
+- Exact spelling of `<team_name>` in file names: team name is "Cota Cero" but our files use `cota-cero`. Upstream only says to name files after the team (`<team_name>.csv`/`.pdf`; the scoreboard labels each row by file name) and that the form's Team Name must match registration. Proposal if no answer: `Cota Cero.csv` / `Cota Cero.pdf`, exactly as registered. Ask the organisers.
 - `requirements.txt` is unpinned (`numpy`, `pandas`); `SUBMISSION.md` asks for pinned dependencies. Pin versions in a PR (and test on the Python versions the scorer supports).
 - Technical document is not written yet (`docs/technical-document.md` is a skeleton).
 - External datasets we could legitimately use for training/tuning (name, license) — none recorded yet.

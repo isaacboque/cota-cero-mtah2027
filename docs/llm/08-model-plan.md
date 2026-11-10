@@ -11,8 +11,10 @@ Facts from the organisers' `CHALLENGE.md`, `EVALUATION.md`, `DATA.md` and `start
 | Ranking = **spellF1**: possessions (maximal `H`/`A` runs) matched by temporal IoU, averaged over IoU 0.3–0.7. Tie-break macroF1. | Get the **number and boundaries of possessions** right. Per-frame accuracy is secondary. Flicker kills the score (raw baseline 0.05 vs smoothed 0.24). |
 | 1 s late on a boundary → 0.65; 1 frame late → 1.0 | Boundaries need ~0.5 s precision, not frame precision. |
 | `D` runs separate possessions (`H H D D H H` = 2 possessions) | A good **dead-ball detector** creates correct splits for free. The baseline's `D` = "ball not seen", which is wrong. |
-| `X` is forward-filled with the previous label before spellF1; counts as a miss in macroF1 | `X` never beats writing the previous label explicitly. **Policy: no `X` on graded frames.** Carry forward instead. |
+| `X` is forward-filled with the previous label before spellF1; counts as a miss in macroF1. FAQ: going quiet through an occlusion is "safer than a guess that might split the possession"; at a transition, guess | `X` equals carrying the previous label forward, so writing that label explicitly scores the same on spellF1 and better on macroF1. **Policy: no `X` on graded frames; through ball gaps, carry the current state forward instead of guessing.** |
 | Graded range = the two halves only. `games.py`: half 1 = video 11185–90651, half 2 = 110808–190197 | Outside the halves output `D` (not scored). Run all temporal models per half. |
+| 2nd half graded from 110808 but kicks off at **113742** (FAQ): 2 934 graded frames, all `D` | Hard rule: `D` until the 2nd-half kick-off (detected from Smart Tagging `Kick Off (Start)` / tracking, falling back to the published frame). Free points. |
+| No statistic of the full-match GT is published, so nobody can tune to it | Sanity targets (possession count, duration, D share) come from IDSSE only — never from the public window's 17 possessions / 14.2 s. |
 | Ball missing on 41 % of graded frames | Missing ball ≠ dead ball. Carry possession through gaps unless strong evidence of a change or stoppage. |
 | Loose ball → last team keeps it. Change only when the other team has the ball **under control**. Single touch, deflection, won aerial duel ≠ change. | Possession is a **sticky state** with a control condition and a minimum dwell, not "nearest player". |
 | GT = corrected tracking's own ball-owner + ball-dead flags | External tracking with official ball-status/ball-possession flags is the closest proxy for training/tuning. |
@@ -70,7 +72,7 @@ Three states `H`, `A`, `D`, decoded **per half** with Viterbi (HMM), extended wi
 Pure numpy; no new dependency needed.
 
 ### 2.6 Post-rules and writer
-- Frames outside the two halves → `D`. No `X` on graded frames.
+- Frames outside the two halves → `D`. Graded frames before the 2nd-half kick-off (110808 … kick-off) → `D`. No `X` on graded frames.
 - Reuse `pipeline/make_submission.py`'s writer (LF, deterministic, sha256). Add `--version` so each version is one command.
 - Output name: `submissions/cota-cero_vN.csv`; the upload copy is named `<team_name>.csv` (spelling still to confirm).
 
@@ -94,7 +96,7 @@ Pure numpy; no new dependency needed.
 The final choice uses IDSSE CV plus the BAR-ATH sanity checks below. Running the public window is allowed as a **correctness check** (does the file score, do the boundaries look misaligned by a constant offset?). It never chooses between versions.
 
 ## 5. Sanity checks on BAR-ATH (no ground truth needed)
-Printed by `validate_submission.py` and a new `pipeline/report.py`, and compared against the IDSSE distributions (never against GT):
+Printed by `validate_submission.py` and a new `pipeline/report.py`, run and read **by a human only** (these are extracts; not pasted into any AI), and compared against the IDSSE distributions (never against GT):
 - Number of possessions and mean duration per half, compared with IDSSE.
 - Share of `D` frames and number of stoppages, compared with IDSSE.
 - Home share of alive frames (Barcelona at home should be high; sanity only).
@@ -124,7 +126,7 @@ Printed by `validate_submission.py` and a new `pipeline/report.py`, and compared
 Rule: if v3 is not clearly better on IDSSE CV by Sunday, ship v2.
 
 ## 8. Rules for Claude Code (read before any task)
-1. Claude Code is an AI service. **It must not read BAR-ATH data**: no `cat`/`head`/`pandas.read_*` printouts of `data/**`, no notebook output with frames, no per-frame dumps in stdout. Commands it runs on BAR-ATH may print **aggregate numbers only** (counts, shares, sha256). Prefer to develop and test on IDSSE and synthetic data, and let a human run the BAR-ATH command.
+1. Claude Code is a hosted LLM. The Terms forbid giving it the data "or any extracts thereof". **It never opens or runs anything on BAR-ATH data** (`data/**`, `evaluation/gt/**`): no reads, no printouts, no running the pipeline on it, no aggregate statistics of it. It develops and tests on IDSSE and synthetic data only. A human runs every BAR-ATH command; the only results that may come back to Claude Code are the validator's pass/fail and the sha256.
 2. Never read `evaluation/gt/*` and never import it from `pipeline/` or `external/`. Do not run `run_evaluation.py` to compare versions.
 3. Every tunable constant lives in one `pipeline/config.py` with a comment giving its source (IDSSE CV run id, organiser doc, or football rule).
 4. Each task ends with: tests on synthetic data (`tests/`), a line in `05-decisions-log.md`, a PR with the template filled. No new dependency without noting it.
@@ -133,9 +135,9 @@ Rule: if v3 is not clearly better on IDSSE CV by Sunday, ship v2.
 - **T1 Loader/cache.** `pipeline/data.py`: `load_match(source="barath"|"idsse", ...)` → dict of arrays as in §2.1, plus `halves`. Cache `.npz`. Test on a synthetic 3-line ATD file. Acceptance: shapes, NaN handling, frame offset (`frame_id - 1`).
 - **T2 IDSSE adapter (E1).** `external/idsse.py` with kloppy: same array interface, plus `gt_codes` (`H/A/D`) from ball status + owning team (home = first team). Report: share of frames with owner/status present. Acceptance: one match loads and its label counts print.
 - **T3 Metric harness.** `pipeline/cv.py`: score any label array against IDSSE `gt_codes` with `evaluation/possession_metrics.py` (import, do not copy), leave-one-match-out loop, results table to `external/results/` (gitignored). Acceptance: v1 logic scored on 7 IDSSE matches.
-- **T4 Degradation.** `external/degrade.py`: ball dropout in contiguous gaps (gap-length distribution as a parameter), position noise, slot drop/duplicate. A separate script prints the BAR-ATH **aggregate** ball-gap histogram (to be run by a human). Acceptance: degraded IDSSE has ~41 % ball-missing on alive frames.
+- **T4 Degradation.** `external/degrade.py`: ball dropout in contiguous gaps (gap-length distribution as a parameter), position noise, slot drop/duplicate. A separate script `external/barath_gap_stats.py` computes the BAR-ATH ball-gap histogram and writes the degradation parameters straight to a local, gitignored `data/cache/degrade_params.json`; a human runs it and nobody pastes its output into an AI. Acceptance: degraded IDSSE has ~41 % ball-missing on alive frames.
 - **T5 Features + dead-ball.** `features.py`, `deadball.py` per §2.2–2.3; dead-ball F1 on IDSSE in the CV table.
-- **T6 v2.** Sticky possession + control rule + outside-halves `D` + no `X`; `make_submission.py --version v2`; `pipeline/report.py` sanity numbers. Acceptance: CV ≥ v1 on degraded IDSSE; deterministic sha256.
+- **T6 v2.** Sticky possession + control rule + outside-halves `D` + 2nd-half pre-kick-off `D` + no `X`; `make_submission.py --version v2`; `pipeline/report.py` sanity numbers. Acceptance: CV ≥ v1 on degraded IDSSE; deterministic sha256.
 - **T7 Smart Tagging cues.** Parse with `starter/load_smart_tagging.py`; restart events `(frame, team|None)`.
 - **T8 Decoder v3.** `decode.py` Viterbi with minimum dwell per half; grid search of decoder parameters on IDSSE CV only. Acceptance: CV table + chosen setting in the decisions log.
 - **T9 (optional) v4 classifier** on degraded IDSSE (scikit-learn or LightGBM, pinned), used as emissions.
