@@ -109,7 +109,7 @@ No fixed roles; anyone takes any stream or task (see [`docs/team-plan.md`](../te
 ## 7. Timeline (Europe/Madrid)
 | Day | Milestone |
 |---|---|
-| Tue 10 | Plan merged. Elena emails the organisers: exact `<team_name>` file spelling and the 17 Nov cut-off hour. |
+| Tue 10 | Plan merged. Someone emails the organisers: exact `<team_name>` file spelling and the 17 Nov cut-off hour. |
 | Wed 11 | A: loader + cache + report. B/E1: IDSSE loaded, ball status/owner confirmed, `H/A/D` labels built. D: draft control/restart rules. |
 | Thu 12 | B: degradation + CV harness scoring v1 on IDSSE. C: dead-ball detector. |
 | Fri 13 | **v2** generated on BAR-ATH, validated, logged in `SUBMISSIONS.md`. First form submission with v2 as a safety net. |
