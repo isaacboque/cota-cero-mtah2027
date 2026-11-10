@@ -6,5 +6,11 @@
 #
 # Optional tooling -- the ATD loader and anything that opens the video -- lives in
 # requirements-starter.txt.
-numpy
-pandas
+#
+# Pinned for reproducibility (the submission must regenerate the same file). Two sets, chosen by
+# interpreter: the older pins cover Python 3.8-3.11, the newer ones 3.12+.
+# Verified: scorer (evaluation/run_evaluation.py) runs with the 3.12+ set on Python 3.13.
+numpy==1.24.4; python_version < "3.12"
+pandas==2.0.3; python_version < "3.12"
+numpy==2.2.6; python_version >= "3.12"
+pandas==2.2.3; python_version >= "3.12"
