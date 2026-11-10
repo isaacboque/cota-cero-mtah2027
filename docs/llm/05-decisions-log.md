@@ -61,3 +61,10 @@ Template:
 - Data used to choose it: none (synthetic tests only).
 - Compliance check: no BAR-ATH data read or run; no GT; Smart Tagging cues not used here (T7).
 - Owner: Isaac
+
+## 2026-11-10 — v2 sticky possession (T6)
+- Decision: `pipeline/control.py` (control = nearest player within `R_CTRL_M`=2.0 m, ball speed relative to that player under `V_CTRL_MS`=3.0 m/s, for at least `T_CTRL_FRAMES`=5 frames), `pipeline/v2.py` (state changes H/A only when the other team has a qualifying control run; D on the dead-ball decision, left to the first team gaining control; carried through ball-missing frames; D outside halves and before the 2nd-half kick-off; never X), `--version v1|v2` in `make_submission.py` (default stays v1), `pipeline/report.py` (sanity numbers).
+- Source / justification: `08-model-plan.md` sections 1, 2.4, 2.6. The three control constants are placeholders to tune on IDSSE CV (source: our written control definition), not set from BAR-ATH.
+- Data used to choose it: none; synthetic tests only. The IDSSE CV table for v1 vs v2 is pending: no IDSSE files were available in the unattended run.
+- Compliance check: no BAR-ATH data read or run; v2 on BAR-ATH is generated and validated by a human.
+- Owner: Isaac

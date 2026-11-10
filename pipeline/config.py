@@ -17,6 +17,11 @@ PITCH = games.GAMES[games.GAME]["pitch"]   # ORGANISER: games.py, 105.3 x 68.0 m
 R_PRESSURE_M = 5.0        # TUNE: radius for "players near the ball" counts
 TURN_MIN_SPEED_MS = 2.0   # TUNE: below this ball speed the direction change is noise, set to 0
 
+# Control events (pipeline/control.py, 08-model-plan.md section 2.4: our written definition of control)
+R_CTRL_M = 2.0            # TUNE: nearest player must be within this distance of the ball
+V_CTRL_MS = 3.0           # TUNE: ball speed relative to that player under this
+T_CTRL_FRAMES = 5         # TUNE: ... for at least this many consecutive frames (0.2 s); 1-frame touches never count
+
 # Dead-ball detector (pipeline/deadball.py)
 OOB_MARGIN_M = 0.5        # RULE: ball is out when wholly over the line (ball radius ~0.11 m); margin absorbs tracking noise -> TUNE
 OOB_ENTER_FRAMES = 5      # TUNE: consecutive out-of-bounds frames before the hysteresis turns on
