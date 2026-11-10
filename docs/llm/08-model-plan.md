@@ -1,6 +1,6 @@
 # Model plan — Initial Challenge (v2 → final)
 
-Status: plan, 10 Nov 2026. Owner: Isaac. Target: submit **Mon 16 Nov** (17 Nov has no published hour).
+Status: plan, 10 Nov 2026. Target: submit **Mon 16 Nov** (17 Nov has no published hour).
 Read `01-rules.md` first. Every parameter in this plan is set on **external data (IDSSE)** or from organiser documents, never on the BAR-ATH ground truth or video.
 
 ## 1. What decides the score (design drivers)
@@ -103,15 +103,8 @@ Printed by `validate_submission.py` and a new `pipeline/report.py`, run and read
 - Fragmentation: runs shorter than 1 s (should be ~0 after post-rules).
 - Determinism: two runs give the same sha256.
 
-## 6. Work split (proposal, adjust in the team chat)
-Team-level plan (onboarding, rituals, day-by-day per person, submission runbook): [`docs/team-plan.md`](../team-plan.md).
-| Stream | Owner (proposal) | Output |
-|---|---|---|
-| A. Pipeline skeleton, loader, cache, writer, report | Isaac + Claude Code | `pipeline/data.py`, `report.py`, `make_submission.py --version` |
-| B. IDSSE loader, labels, degradation, CV harness | Judit + Claude Code | `external/idsse.py`, `external/degrade.py`, `pipeline/cv.py` |
-| C. Dead-ball detector + control rules + decoder | Isaac / Judit | `deadball.py`, `control.py`, `decode.py` |
-| D. Football definition of control, restarts, loose balls; review aggregate sanity numbers; Smart Tagging semantics | Iker | written rules (→ tech doc §3), list of edge cases to test |
-| E. Technical document, compliance checklist, final form, file naming question to organisers | Elena (+ all) | `docs/technical-document.md` → PDF, email to organisers |
+## 6. Work split
+No fixed roles; anyone takes any stream or task (see [`docs/team-plan.md`](../team-plan.md)). Streams: A pipeline/loader/writer/report · B IDSSE, degradation, validation harness · C dead-ball, control, decoder · D football rules for control/restarts/loose balls + edge-case tests · E technical document, checklist, organiser emails, form.
 
 ## 7. Timeline (Europe/Madrid)
 | Day | Milestone |
