@@ -25,3 +25,10 @@ Template:
 - Data used to choose it: none (organiser-published figure).
 - Compliance check: no training, no GT access, no video check, no data sent to AI.
 - Owner: Isaac
+
+## 2026-11-10 — ATD loader conventions (T1)
+- Decision: `pipeline/data.py` scales normalised 0-1 coordinates by `games.GAMES["BAR-ATH"]["pitch"]` (105.3 x 68.0 m), indexes rows by `frame_id - 1`, and treats a ball/player group with a NaN coordinate as missing. `halves` is `(half, first_row, last_row)`; rows are video frames for BAR-ATH.
+- Source / justification: organiser constants in `games.py`; `starter/baseline.py` (parsing, home = first Team).
+- Data used to choose it: none (code and synthetic tests only).
+- Compliance check: no BAR-ATH data read or run; no GT.
+- Owner: Isaac

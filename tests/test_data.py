@@ -69,3 +69,26 @@ def test_cache_round_trip(paths, tmp_path):
     assert set(e) == set(d)
     for k in d:
         np.testing.assert_array_equal(e[k], d[k])
+
+
+def test_partial_ball_group_counts_as_unseen(tmp_path):
+    meta, raw = tmp_path / "m.xml", tmp_path / "r.txt"
+    meta.write_text(META)
+    raw.write_text("1:0.5,0.5,1.0;0.1,0.2,2.0;0.9,0.8,3.0;0.3,0.4,4.0:0.5,NaN,7.0\n")
+    d = data.load_barath(str(meta), str(raw))
+    assert d["ball_seen"].tolist() == [False]
+    assert np.isnan(d["ball_xy"]).all()
+
+
+def test_fps_and_default_pitch_come_from_games(paths):
+    import games
+    d = data.load_barath(*paths)
+    assert float(d["fps"]) == games.GAMES[games.GAME]["fps"]
+    assert data.DEFAULT_PITCH == games.GAMES[games.GAME]["pitch"]
+
+
+def test_load_match_dispatches_to_barath(paths):
+    d = data.load_match("barath", *paths)
+    assert d["ball_xy"].shape == (4, 2)
+    with pytest.raises(ValueError):
+        data.load_match("nope")

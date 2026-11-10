@@ -17,8 +17,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import games  # noqa: E402
 
 HOME, AWAY = 0, 1
-DEFAULT_PITCH = (105.3, 68.0)
-_KEYS = ("ball_xy", "ball_speed", "ball_seen", "players_xy", "players_speed", "slot_team", "halves")
+# Source: organiser constants in games.py (real pitch size in metres, 25 fps), logged in 05-decisions-log.md.
+DEFAULT_PITCH = games.GAMES[games.GAME]["pitch"]
 
 
 def slot_teams(meta_path):
@@ -34,11 +34,14 @@ def slot_teams(meta_path):
 
 
 def _group(text):
-    """(x, y, speed) floats from 'x,y,speed'; NaNs if the group is missing or short."""
+    """(x, y, speed) floats from 'x,y,speed'; None if missing or any coordinate is NaN; speed NaNs if the group is missing or short."""
     if not text or text[0] == "N":
         return None
     vals = text.split(",")
-    return float(vals[0]), float(vals[1]), float(vals[2]) if len(vals) > 2 else np.nan
+    x, y = float(vals[0]), float(vals[1])
+    if np.isnan(x) or np.isnan(y):
+        return None
+    return x, y, float(vals[2]) if len(vals) > 2 else np.nan
 
 
 def load_barath(meta_path, raw_path, pitch=DEFAULT_PITCH, n_frames=None):
@@ -50,7 +53,7 @@ def load_barath(meta_path, raw_path, pitch=DEFAULT_PITCH, n_frames=None):
     slot_team = slot_teams(meta_path)
     n_slots = len(slot_team)
     length, width = pitch
-    rows = []  # (index, ball or None, [group or None])
+    rows = []
     with open(raw_path) as handle:
         for line in handle:
             parts = line.rstrip("\r\n").split(":")
@@ -70,7 +73,7 @@ def load_barath(meta_path, raw_path, pitch=DEFAULT_PITCH, n_frames=None):
     players_xy = np.full((n_frames, n_slots, 2), np.nan)
     players_speed = np.full((n_frames, n_slots), np.nan)
 
-    for idx, ball, groups in rows:
+    for idx, ball, groups in rows:  # (row index, ball group or None, slot groups)
         if not 0 <= idx < n_frames:
             continue
         if ball is not None:
@@ -83,9 +86,22 @@ def load_barath(meta_path, raw_path, pitch=DEFAULT_PITCH, n_frames=None):
                 players_speed[idx, slot] = g[2]
 
     halves = np.array(games.half_video_blocks(games.GAME), dtype=np.int64)
+    # halves: (half, first_row, last_row); rows are video frames for BAR-ATH, so these are video-frame blocks.
     return {"ball_xy": ball_xy, "ball_speed": ball_speed, "ball_seen": ball_seen,
             "players_xy": players_xy, "players_speed": players_speed,
-            "slot_team": slot_team, "halves": halves}
+            "slot_team": slot_team, "halves": halves,
+            "fps": np.array(float(games.GAMES[games.GAME]["fps"]))}
+
+
+def load_match(source, *args, **kwargs):
+    """Single entry point: source "barath" (meta_path, raw_path, ...) or "idsse" (match_id, ...).
+    Both return the same keys; `halves` is (half, first_row, last_row) in row indices."""
+    if source == "barath":
+        return load_barath(*args, **kwargs)
+    if source == "idsse":
+        from external.idsse import load_idsse  # lazy: kloppy is optional (requirements-starter.txt)
+        return load_idsse(*args, **kwargs)
+    raise ValueError("unknown source {!r}".format(source))
 
 
 def save_cache(d, path):
