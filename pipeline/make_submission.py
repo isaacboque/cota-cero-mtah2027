@@ -53,13 +53,22 @@ def sha256(path):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--window", type=int, default=WINDOW)
+    parser.add_argument("--window", type=int, default=WINDOW, help="v1 only")
     parser.add_argument("--out", default=OUT_DIR)
+    parser.add_argument("--version", choices=("v1", "v2"), default=VERSION)
     args = parser.parse_args()
 
-    codes = baseline.build()
-    labels = baseline.smooth(codes, args.window)
-    path = write_csv(os.path.join(args.out, "{}_{}.csv".format(TEAM, VERSION)), labels)
+    if args.version == "v2":
+        import numpy as np
+        import games
+        from pipeline import data, v2
+        meta, raw = games.require(["atd_meta", "atd_raw"])
+        d = data.load_barath(meta, raw, n_frames=games.source_frames())
+        labels = np.array(["H", "A", "D"])[v2.predict_v2(d)]
+    else:
+        codes = baseline.build()
+        labels = baseline.smooth(codes, args.window)
+    path = write_csv(os.path.join(args.out, "{}_{}.csv".format(TEAM, args.version)), labels)
 
     counts = {label: int((labels == label).sum()) for label in ("H", "A", "D")}
     print("wrote {}".format(os.path.relpath(path, ROOT)))
