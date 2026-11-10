@@ -1,9 +1,11 @@
 """IDSSE adapter (Bassek et al. 2025, Scientific Data 12:195; DFL; CC BY 4.0; 25 fps).
 
 Returns the same keys as pipeline.data.load_barath, plus `gt_codes`:
-  0 = H (ball alive, home owns), 1 = A (alive, away owns), 2 = D (ball dead).
-Rows are the dataset's frames in order (both halves, no gap rows); `halves` is (period, first_row,
-last_row). Slots: home players first, then away; `slot_team` 0/1 accordingly.
+  0 = H (ball alive, home owns), 1 = A (alive, away owns), 2 = D (ball dead), -1 = ball state unknown.
+Extra key `fps` (also returned by load_barath). Rows are the dataset's frames in order (both halves,
+no gap rows); `halves` is (period, first_row, last_row) in row indices, same meaning as load_barath.
+Slots: every squad player listed in the metadata (home first, then away; bench players included,
+so the count varies per match, unlike BAR-ATH's 46 tracks); `slot_team` is 0/1 accordingly.
 
 kloppy's sportec reader sets ball_owning_team to home if the raw possession flag is 1 and to AWAY
 otherwise (never None), so the owner is only meaningful on alive frames. Load with only_alive=False
@@ -32,7 +34,7 @@ def from_dataset(ds):
         "ball_seen": np.zeros(n, dtype=bool),
         "players_xy": np.full((n, len(players), 2), np.nan),
         "players_speed": np.full((n, len(players)), np.nan),
-        "slot_team": slot_team, "gt_codes": np.full(n, CODES["D"], dtype=np.int8),
+        "slot_team": slot_team, "gt_codes": np.full(n, -1, dtype=np.int8),
     }
     home = teams[0]
     periods = []
@@ -46,8 +48,11 @@ def from_dataset(ds):
             if d is not None and d.coordinates is not None:
                 out["players_xy"][i, s] = (d.coordinates.x * length, d.coordinates.y * width)
                 out["players_speed"][i, s] = d.speed if d.speed is not None else np.nan
-        if str(f.ball_state).upper().endswith("ALIVE"):
+        state = getattr(f.ball_state, "name", None)  # kloppy BallState enum member
+        if state == "ALIVE":
             out["gt_codes"][i] = CODES["H"] if f.ball_owning_team == home else CODES["A"]
+        elif state == "DEAD":
+            out["gt_codes"][i] = CODES["D"]
         pid = f.period.id
         if not periods or periods[-1][0] != pid:
             periods.append([pid, i, i])

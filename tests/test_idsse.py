@@ -1,13 +1,19 @@
 from types import SimpleNamespace as NS
 
-
-class Obj:
-    """Hashable by identity, like kloppy's Player."""
-
 import numpy as np
 import pytest
 
 from external import idsse
+
+
+class Obj:
+    """Hashable by identity, like kloppy's Player."""
+
+
+class State:
+    """Stands in for kloppy's BallState enum member (has .name)."""
+    def __init__(self, name):
+        self.name = name
 
 
 def _fake():
@@ -17,11 +23,11 @@ def _fake():
     pd = lambda x, y: NS(coordinates=pt(x, y), speed=1.0)
     p1, p2 = NS(id=1), NS(id=2)
     frames = [
-        NS(ball_state="BallState.ALIVE", ball_owning_team=teams[0], ball_coordinates=pt(.5, .5),
+        NS(ball_state=State("ALIVE"), ball_owning_team=teams[0], ball_coordinates=pt(.5, .5),
            ball_speed=2.0, period=p1, players_data={h1: pd(.1, .2), a1: pd(.9, .8)}),
-        NS(ball_state="BallState.ALIVE", ball_owning_team=teams[1], ball_coordinates=pt(.5, .5),
+        NS(ball_state=State("ALIVE"), ball_owning_team=teams[1], ball_coordinates=pt(.5, .5),
            ball_speed=2.0, period=p1, players_data={h1: pd(.1, .2)}),
-        NS(ball_state="BallState.DEAD", ball_owning_team=teams[1], ball_coordinates=pt(0, 0),
+        NS(ball_state=State("DEAD"), ball_owning_team=teams[1], ball_coordinates=pt(0, 0),
            ball_speed=0.0, period=p2, players_data={}),
     ]
     meta = NS(teams=teams, frame_rate=25.0, pitch_dimensions=NS(pitch_length=100.0, pitch_width=50.0))
@@ -37,6 +43,12 @@ def test_from_dataset():
     assert np.isnan(d["players_xy"][1, 2]).all()
     assert d["ball_xy"][0].tolist() == [50.0, 25.0]
     assert d["halves"].tolist() == [[1, 0, 1], [2, 2, 2]]
+
+
+def test_unknown_ball_state_is_not_dead():
+    ds = _fake()
+    ds.frames[2].ball_state = None
+    assert idsse.from_dataset(ds)["gt_codes"].tolist() == [0, 1, -1]
 
 
 @pytest.mark.idsse
