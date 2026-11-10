@@ -24,6 +24,8 @@ If a request would break one of these, stop and say which rule.
 - `docs/llm/06-compliance-checklist.md` — run before every PR/submission
 - `docs/llm/07-roadmap.md` — schedule, approach ladder, Round 2 outline, open questions
 - `docs/team-plan.md` — team roles, rituals, day-by-day plan, submission runbook
+- `docs/llm/09-claude-code-playbook.md` — how Claude Code runs here: handoff batches, setup, permissions, prompts
+- `docs/llm/09-claude-code-playbook.md` — how Claude Code runs here: handoff batches, setup, permissions, prompts
 - `docs/llm/08-model-plan.md` — model architecture, external data (IDSSE), work split, timeline, Claude Code task queue
 
 Organisers' docs (CHALLENGE, RULES, EVALUATION, SUBMISSION, DATA, FAQ) are linked from `README.md`, not copied. They win over anything here if they disagree.
