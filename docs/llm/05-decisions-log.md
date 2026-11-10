@@ -40,3 +40,10 @@ Template:
 - Dependency: kloppy is pinned in `requirements-starter.txt` (`kloppy==3.18.0`), not in `requirements.txt`; it is imported lazily and the IDSSE test is skipped in CI.
 - Compliance check: rules 1-5 of `CLAUDE.md` respected: no GT, no video, no match data sent to AI. Figshare answers scripted downloads with a WAF challenge, so raw files may need a manual browser download into `data/external/idsse/<id>_meta.xml` and `<id>_tracking.xml`.
 - Owner: Isaac
+
+## 2026-11-10 — Validation harness (T3)
+- Decision: `pipeline/cv.py` scores with `evaluation/possession_metrics.py` (imported, not copied), temporal metrics per half, IDSSE `gt_codes == -1` treated as X (not graded). `baseline_v1` reproduces starter/baseline.py (nearest player, majority vote +/-50, ties to home) on the array dict. Leave-one-match-out writes `external/results/cv_<name>.csv` (gitignored).
+- Source / justification: `08-model-plan.md` section 3 protocol; organiser metric code.
+- Data used to choose it: none (synthetic tests only); first real IDSSE CV run is for an interactive session.
+- Compliance check: no BAR-ATH data, no `evaluation/gt/`, no run of `run_evaluation.py`.
+- Owner: Isaac
