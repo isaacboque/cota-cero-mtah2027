@@ -22,6 +22,20 @@ R_CTRL_M = 2.0            # TUNE: nearest player must be within this distance of
 V_CTRL_MS = 3.0           # TUNE: ball speed relative to that player under this
 T_CTRL_FRAMES = 5         # TUNE: ... for at least this many consecutive frames (0.2 s); 1-frame touches never count
 
+# Decoder v3 (pipeline/decode.py). All placeholders: TUNE on degraded IDSSE leave-one-match-out CV
+# (flat region of the curve, not the max); the CV run id goes here once a run exists. None yet.
+MIN_DWELL_HA_S = 1.0      # TUNE: minimum H/A run (organisers: ~0.5 s boundary precision, flicker kills spellF1)
+MIN_DWELL_D_S = 1.0       # TUNE: minimum D run
+LOG_SWITCH_NEAR = -1.0    # TUNE: log cost of H<->A with a control event of the new team nearby
+LOG_SWITCH_FAR = -8.0     # TUNE: ... without one
+LOG_TO_D = -3.0           # TUNE: log cost of alive -> D (the dead-ball score drives it through emissions)
+LOG_EXIT_CUE = -0.5       # TUNE: D -> team that the Smart Tagging restart cue names (or any team if cue has none)
+LOG_EXIT_FAR = -4.0       # TUNE: D -> team with no cue nearby (nearby control event uses LOG_SWITCH_NEAR)
+NEAR_EVENT_S = 1.0        # TUNE: "nearby" window, seconds either side
+P_CTRL = 0.85             # TUNE: emission probability that the team in control is the possessor
+DEAD_P_CLIP = 0.02        # TUNE: clip of the dead-ball score before taking logs
+LOG_HARD = -50.0          # structural: alive emission on hard-D frames (outside halves / pre-kick-off)
+
 # Dead-ball detector (pipeline/deadball.py)
 OOB_MARGIN_M = 0.5        # RULE: ball is out when wholly over the line (ball radius ~0.11 m); margin absorbs tracking noise -> TUNE
 OOB_ENTER_FRAMES = 5      # TUNE: consecutive out-of-bounds frames before the hysteresis turns on
