@@ -26,6 +26,13 @@ Template:
 - Compliance check: no training, no GT access, no video check, no data sent to AI.
 - Owner: Isaac
 
+## 2026-11-10 — ATD loader conventions (T1)
+- Decision: `pipeline/data.py` scales normalised 0-1 coordinates by `games.GAMES["BAR-ATH"]["pitch"]` (105.3 x 68.0 m), indexes rows by `frame_id - 1`, and treats a ball/player group with a NaN coordinate as missing. `halves` is `(half, first_row, last_row)`; rows are video frames for BAR-ATH.
+- Source / justification: organiser constants in `games.py`; `starter/baseline.py` (parsing, home = first Team).
+- Data used to choose it: none (code and synthetic tests only).
+- Compliance check: no BAR-ATH data read or run; no GT.
+- Owner: Isaac
+
 ## 2026-11-10 — IDSSE adopted as external tuning data
 - Decision: use IDSSE (Bassek et al. 2025, *Scientific Data* 12:195; owner DFL; **CC BY 4.0**, cite it) as the external dataset for tuning/CV, via `external/idsse.py`. `gt_codes`: H/A = ball alive and owner home/away, D = ball dead, -1 = unknown (kloppy `ball_state`).
 - Source / justification: `08-model-plan.md` §3; kloppy 3.18.0 sportec reader exposes per-frame `ball_state` and `ball_owning_team`. Its owner is home if the raw flag is 1 else away (never None), so the owner is only used on alive frames. Match IDs per kloppy: `J03WPY J03WMX J03WN1 J03WOH J03WOY J03WQQ J03WR9` (the plan's `J03WPF`/`J03WQF` do not exist there).
