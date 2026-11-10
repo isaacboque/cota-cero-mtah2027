@@ -1,0 +1,6 @@
+# Keep competition data and label sets away from AI assistants (Terms forbid sharing data "or any extracts")
+data/
+evaluation/gt/
+evaluation/results/*.csv
+submissions/
+*.mp4

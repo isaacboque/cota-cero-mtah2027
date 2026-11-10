@@ -6,7 +6,7 @@ Entry point for any LLM/agent working in this repo. Keep it short; details live 
 
 ## Hard rules (competition compliance) — read `docs/llm/01-rules.md` before any task
 Anything not explicitly allowed is forbidden. In particular, never:
-1. Upload, paste or send match data (tracking, video, smart tagging, homography, ground truth) to any AI service — **including you**. Do not read/cat/print the contents of anything under `data/` or any `*.csv` label set into the conversation. Work from code, shapes, schemas and aggregate stats only.
+1. Upload, paste or send match data (tracking, video, smart tagging, homography, ground truth) to any AI service — **including you**. Do not read/cat/print the contents of anything under `data/` or any `*.csv` label set into the conversation. The organisers' Terms forbid making the data "or any extracts thereof" available to any hosted LLM. Work from code, the organisers' public docs, external data (IDSSE) and synthetic data only; never run commands on BAR-ATH data yourself.
 2. Check an output against the video, or create hand labels / manual data on the provided match.
 3. Train, fit, tune or calibrate on the ground truth (including `evaluation/gt/*_public*`) or on the provided video. Parameters/training come from **external data only**, with a license we hold.
 4. Commit match data or full-match label sets (repo is public; see `.gitignore`).
@@ -23,6 +23,8 @@ If a request would break one of these, stop and say which rule.
 - `docs/llm/05-decisions-log.md` — dated decisions and their compliance rationale
 - `docs/llm/06-compliance-checklist.md` — run before every PR/submission
 - `docs/llm/07-roadmap.md` — schedule, approach ladder, Round 2 outline, open questions
+- `docs/team-plan.md` — team roles, rituals, day-by-day plan, submission runbook
+- `docs/llm/08-model-plan.md` — model architecture, external data (IDSSE), work split, timeline, Claude Code task queue
 
 Organisers' docs (CHALLENGE, RULES, EVALUATION, SUBMISSION, DATA, FAQ) are linked from `README.md`, not copied. They win over anything here if they disagree.
 
