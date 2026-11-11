@@ -50,6 +50,54 @@ def _frames(seconds, fps):
     return int(round(seconds * fps))
 
 
+# -- ball preprocessing (tickets #21 / #22; both off by default) ------------------------------------
+
+def _sg_coeffs(window, order=2):
+    """Savitzky-Golay smoothing weights for the centre sample (least-squares polynomial fit)."""
+    half = window // 2
+    x = np.arange(-half, half + 1, dtype=float)
+    A = np.vander(x, order + 1, increasing=True)
+    return np.linalg.pinv(A)[0]
+
+
+def prepare_ball(d, c):
+    """Copy of `d` with short ball gaps interpolated (INTERP_MAX_GAP_FRAMES) and the ball smoothed
+    (BALL_SMOOTH_FRAMES, Savitzky-Golay order 2) inside each half. Returns `d` itself when both
+    are off. Gaps touching a half boundary are never filled; smoothing only runs on seen runs at
+    least one window long, edges kept."""
+    g = int(c.get("INTERP_MAX_GAP_FRAMES") or 0)
+    w = int(c.get("BALL_SMOOTH_FRAMES") or 0)
+    if g <= 0 and w < 3:
+        return d
+    out = dict(d)
+    ball = np.array(d["ball_xy"], dtype=float, copy=True)
+    seen = np.array(d["ball_seen"], dtype=bool, copy=True)
+    for _, a, b in np.asarray(d["halves"]).reshape(-1, 3):
+        a, b = int(a), int(b) + 1
+        if g > 0:
+            for s0, e0 in _runs(~seen[a:b]):
+                s1, e1 = a + s0, a + e0
+                if e1 - s1 <= g and s1 > a and e1 < b:
+                    t = (np.arange(s1, e1) - (s1 - 1)) / (e1 - (s1 - 1))
+                    ball[s1:e1] = ball[s1 - 1] + t[:, None] * (ball[e1] - ball[s1 - 1])
+                    seen[s1:e1] = True
+        if w >= 3:
+            w_odd = w if w % 2 else w + 1
+            k = _sg_coeffs(w_odd)
+            h = w_odd // 2
+            for s0, e0 in _runs(seen[a:b]):
+                s1, e1 = a + s0, a + e0
+                if e1 - s1 < w_odd:
+                    continue
+                seg = ball[s1:e1]
+                sm = seg.copy()
+                for j in range(2):
+                    sm[h:len(seg) - h, j] = np.convolve(seg[:, j], k[::-1], mode="valid")
+                ball[s1:e1] = sm
+    out["ball_xy"], out["ball_seen"] = ball, seen
+    return out
+
+
 # -- per-frame signals --------------------------------------------------------------------------
 
 def nearest_player(d):
@@ -287,6 +335,7 @@ def predict_v4(d, kickoff_2nd=config.KICKOFF_2ND, restarts=None, params=None):
     """Labels per row (0 H, 1 A, 2 D). `restarts` = pipeline.restarts.restart_events output
     (evidence only; None or [] for sources without Smart Tagging, e.g. IDSSE)."""
     c = _cfg(params)
+    d = prepare_ball(d, c)
     cues = list(restarts or [])
     n = len(d["ball_seen"])
     seen = np.asarray(d["ball_seen"], dtype=bool)

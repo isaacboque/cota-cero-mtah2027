@@ -209,3 +209,46 @@ def test_restart_kick_keeps_dead_until_the_ball_is_struck():
     out = run(_carried_back_throw_in(), params={"RESTART_KICK_MS": 6.0, "RESTART_MAX_EXT_S": 30.0})
     assert (out[240:455] == D).all()
     assert (out[500:700] == A).all()
+
+
+# Tickets #21 / #22: ball preprocessing (off by default).
+def _ball_dict(ball, seen, halves):
+    return {"ball_xy": ball, "ball_seen": seen, "halves": np.array(halves)}
+
+
+def test_interpolation_fills_only_short_gaps_inside_a_half():
+    n = 100
+    ball = np.stack([np.arange(n, dtype=float), np.zeros(n)], axis=1)
+    seen = np.ones(n, bool)
+    for a, b in ((10, 14), (30, 60), (78, 82)):  # 4-frame gap, 30-frame gap, gap across halves
+        seen[a:b] = False
+    ball[~seen] = np.nan
+    d = _ball_dict(ball.copy(), seen.copy(), [[1, 0, 79], [2, 80, n - 1]])
+    out = v4.prepare_ball(d, {"INTERP_MAX_GAP_FRAMES": 5, "BALL_SMOOTH_FRAMES": 0})
+    assert out["ball_seen"][10:14].all() and np.allclose(out["ball_xy"][10:14, 0], [10, 11, 12, 13])
+    assert not out["ball_seen"][30:60].any() and not out["ball_seen"][78:82].any()
+    assert not d["ball_seen"][10:14].any()  # input untouched
+
+
+def test_smoothing_keeps_linear_motion_and_reduces_noise():
+    rng = np.random.default_rng(0)
+    n = 400
+    line = np.stack([np.arange(n) * 0.4, np.full(n, 30.0)], axis=1)
+    seen = np.ones(n, bool)
+    seen[200:210] = False
+    clean = line.copy()
+    clean[~seen] = np.nan
+    d = _ball_dict(clean.copy(), seen, [[1, 0, n - 1]])
+    out = v4.prepare_ball(d, {"INTERP_MAX_GAP_FRAMES": 0, "BALL_SMOOTH_FRAMES": 7})
+    assert np.allclose(out["ball_xy"][seen], line[seen])          # a polynomial filter keeps lines
+    assert np.isnan(out["ball_xy"][200:210]).all()
+    noisy = clean + rng.normal(0, 0.1, clean.shape)
+    out = v4.prepare_ball(_ball_dict(noisy, seen, [[1, 0, n - 1]]),
+                          {"INTERP_MAX_GAP_FRAMES": 0, "BALL_SMOOTH_FRAMES": 7})
+    assert np.nanstd(out["ball_xy"] - line) < 0.75 * np.nanstd(noisy - line)
+
+
+def test_preprocessing_off_by_default_changes_nothing():
+    d = scene([(0, 40, 34), (N - 1, 70, 34)], missing=[(100, 103)])
+    out = v4.prepare_ball(d, v4._cfg(None))
+    assert out is d

@@ -1,6 +1,6 @@
 """IDSSE experiments for the "Plan rediseño de control" map (issue #17). External data only.
 
-    python external/control_experiments.py base|noise|touch|dead|deadstart [--seeds 0 1 2] [--cache-dir ...]
+    python external/control_experiments.py base|noise|touch|dead|deadstart|signal [--seeds 0 1 2] [--cache-dir ...]
 
 Degradation always uses explicit parameters (degrade.DEFAULT_PARAMS plus the overrides below),
 never data/cache/degrade_params.json: that file holds BAR-ATH statistics and must not feed a run
@@ -64,6 +64,17 @@ def predictors(exp):
                     features.out_of_bounds.__defaults__ = old_def
             return fn
         p = {"v4_" + k: patched(v) for k, v in variants.items()}
+    if exp == "signal":  # tickets #21 (control signal) and #22 (ball gaps)
+        nosp = {"V_CTRL_MS": 99.0}  # candidate (2): distance + persistence, no speed condition
+        variants = {"base": {}, "interp5": {"INTERP_MAX_GAP_FRAMES": 5},
+                    "interp10": {"INTERP_MAX_GAP_FRAMES": 10}, "interp25": {"INTERP_MAX_GAP_FRAMES": 25},
+                    "smooth7": {"BALL_SMOOTH_FRAMES": 7}, "nospeed": dict(nosp),
+                    "smooth7_nospeed": dict(nosp, BALL_SMOOTH_FRAMES=7),
+                    "nospeed_r1": dict(nosp, R_CTRL_M=1.0),
+                    "nospeed_k12": dict(nosp, T_CTRL_FRAMES=12),
+                    "nospeed_k25": dict(nosp, T_CTRL_FRAMES=25)}
+        p = {"v4_" + k: (lambda d, prm=v: v4.predict_v4(d, kickoff_2nd=None, params=prm))
+             for k, v in variants.items()}
     if exp == "touch":
         p = {}
         for dv, gap in itertools.product((6.0, 8.0, 10.0, 12.0), ("reappear", "midpoint")):
@@ -103,7 +114,7 @@ def dead_breakdown(gt, pred, fps):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("exp", choices=("base", "noise", "touch", "dead", "deadstart"))
+    ap.add_argument("exp", choices=("base", "noise", "touch", "dead", "deadstart", "signal"))
     ap.add_argument("--seeds", type=int, nargs="+", default=[0, 1, 2])
     ap.add_argument("--tag", default="", help="suffix for the output file")
     ap.add_argument("--cache-dir", default=os.path.join(ROOT, "data", "external", "idsse"))

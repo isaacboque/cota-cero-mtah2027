@@ -69,6 +69,8 @@ W_CUE = 0.3               # DOC 6 + NO-IDSSE: Smart Tagging set piece nearby; be
 CUE_WINDOW_S = 5.0        # ORGANISER (starter/01_smart_tagging.ipynb: tags are ~5 s windows that open ~3.5 s before the restart) + NO-IDSSE
 RESTART_MAX_EXT_S = 5.0   # TUNE: longest a dead run is extended while the ball stays static (BALL_STATIC_MS) waiting for the restart (DOC 7)
 RESTART_KICK_MS = None    # TUNE (ticket #23): a dead run ends when the ball moves faster than this (struck); None = BALL_STATIC_MS (old rule)
+INTERP_MAX_GAP_FRAMES = 0  # TUNE (ticket #22): ball gaps up to this many frames are interpolated linearly; 0 = off
+BALL_SMOOTH_FRAMES = 0     # TUNE (ticket #21): Savitzky-Golay window (order 2) on the ball; 0 = off; literature: 7
 R_TAKER_M = 3.0           # TUNE: restarting team = nearest player within this at the restart (DOC 7, throw-ins are tagged N/A)
 TAKER_WINDOW_S = 1.0      # TUNE: how long after the restart the taker is searched for
 GOAL_MAX_S = 180.0        # RULE + NO-IDSSE: a kick-off cue later than this after a goal cue is not its restart
