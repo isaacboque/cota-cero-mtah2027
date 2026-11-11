@@ -35,6 +35,7 @@ DEFAULT_PARAMS = {
     "noise_sigma_m": 0.0,
     "player_jitter_m": None,
     "ball_jitter_m": None,
+    "noise_corr_frames": 50,  # used only with noise_sigma_m > 0 (no jitter targets): moving average over this many frames; 1 = white
     "target_visible_slots": 20.5,
     "drop_prob": 0.0,
     "dup_prob": 0.02,
@@ -76,6 +77,30 @@ def _graded(d):
     for _, a, b in np.asarray(d["halves"]).reshape(-1, 3):
         inside[int(a):int(b) + 1] = True
     return inside
+
+
+def load_params(path):
+    """Read degrade params from a JSON file (e.g. data/cache/degrade_params.json). Only keys of
+    DEFAULT_PARAMS are kept; a missing file gives {}. Values are never printed or logged."""
+    import json
+    import os
+    if not os.path.exists(path):
+        return {}
+    with open(path) as fh:
+        raw = json.load(fh)
+    return {k: v for k, v in raw.items() if k in DEFAULT_PARAMS}
+
+
+def _noise(shape, sigma, corr, rng):
+    """Gaussian noise of std `sigma`, correlated in time (axis 0) by a moving average of `corr`
+    frames. Independent per-frame noise gives ~10 m/s velocity jitter at 25 fps, which tracking
+    data does not have (and which no velocity-based rule could survive)."""
+    corr = max(1, int(corr))
+    n = shape[0]
+    white = rng.normal(0.0, 1.0, (n + corr - 1,) + tuple(shape[1:]))
+    c = np.cumsum(white, axis=0)
+    c = np.concatenate([np.zeros((1,) + c.shape[1:]), c], axis=0)
+    return sigma * (c[corr:] - c[:-corr]) / np.sqrt(corr)
 
 
 def _drop_ball(d, out, params, rng):
@@ -128,10 +153,14 @@ def degrade(d, params=None, seed=0):
 
     sigma_ball = _added_sigma(p.get("ball_jitter_m"), jitter_sigma(d["ball_xy"]), p["noise_sigma_m"])
     sigma_pl = _added_sigma(p.get("player_jitter_m"), jitter_sigma(d["players_xy"]), p["noise_sigma_m"])
+    # measured jitter targets -> add the missing white jitter; otherwise noise_sigma_m (default 0)
+    # with main's temporal correlation (noise_corr_frames)
+    corr_b = 1 if p.get("ball_jitter_m") is not None else p.get("noise_corr_frames", 1)
+    corr_p = 1 if p.get("player_jitter_m") is not None else p.get("noise_corr_frames", 1)
     if sigma_ball > 0:
-        out["ball_xy"] += rng.normal(0.0, sigma_ball, out["ball_xy"].shape)  # NaN stays NaN
+        out["ball_xy"] += _noise(out["ball_xy"].shape, sigma_ball, corr_b, rng)  # NaN stays NaN
     if sigma_pl > 0:
-        out["players_xy"] += rng.normal(0.0, sigma_pl, out["players_xy"].shape)
+        out["players_xy"] += _noise(out["players_xy"].shape, sigma_pl, corr_p, rng)
 
     pl, ps = out["players_xy"], out["players_speed"]
     n, s = pl.shape[:2]

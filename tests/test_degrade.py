@@ -78,6 +78,15 @@ def test_noise_and_slot_drop():
     assert abs(vis - 11.0) < 0.5
 
 
+def test_load_params_keeps_known_keys_and_tolerates_missing_file(tmp_path):
+    from external.degrade import load_params
+    f = tmp_path / "p.json"
+    f.write_text('{"target_missing": 0.3, "gap_bins": [1, 9], "gap_weights": [1.0], "bogus": 5}')
+    p = load_params(str(f))
+    assert p == {"target_missing": 0.3, "gap_bins": [1, 9], "gap_weights": [1.0]}
+    assert load_params(str(tmp_path / "absent.json")) == {}
+
+
 def test_gap_stats_compute():
     n = 100
     seen = np.ones(n, bool)
@@ -110,7 +119,7 @@ def test_degrade_adds_only_the_missing_jitter():
     out = degrade(d, dict(base, player_jitter_m=0.2, ball_jitter_m=0.1), seed=1)
     assert abs(jitter_sigma(out["players_xy"]) - 0.2) < 0.02
     assert abs(jitter_sigma(out["ball_xy"]) - 0.1) < 0.02
-    already = degrade(d, dict(base, noise_sigma_m=0.3), seed=2)       # input jitter 0.3 > target
+    already = degrade(d, dict(base, noise_sigma_m=0.3, noise_corr_frames=1), seed=2)  # white: input jitter 0.3 > target
     again = degrade(already, dict(base, player_jitter_m=0.2), seed=3)
     assert np.allclose(again["players_xy"], already["players_xy"])    # nothing added
 
@@ -167,3 +176,12 @@ def test_default_degrade_has_no_team_swap():
     d["players_xy"][:, 11:] = 100.0
     out = degrade(d, {"target_visible_slots": None}, seed=1)
     assert not (out["players_xy"][:, :11, 0] == 100.0).any()
+
+
+def test_noise_is_temporally_correlated_but_keeps_sigma():
+    d = _clean(20000)
+    out = degrade(d, {"target_missing": 0.0, "noise_sigma_m": 0.3, "dup_prob": 0.0,
+                      "target_visible_slots": None, "noise_corr_frames": 50}, seed=5)
+    err = out["ball_xy"] - d["ball_xy"]
+    assert 0.2 < err.std() < 0.4                 # marginal sigma kept
+    assert np.diff(err, axis=0).std() < 0.1      # frame-to-frame jitter small => velocity noise < ~2.5 m/s at 25 fps
