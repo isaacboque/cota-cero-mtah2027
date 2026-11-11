@@ -91,3 +91,34 @@ def test_load_idsse_rebuilds_cache_when_xml_is_newer(tmp_path, monkeypatch):
     os.utime(xml, (later, later))
     idsse.load_idsse("J03WPY", str(tmp_path))
     assert calls == ["J03WPY", "J03WPY"]
+
+
+def _codes(*runs):
+    return np.concatenate([np.full(n, c, dtype=np.int8) for c, n in runs])
+
+
+def test_filter_absorbs_short_flick_into_previous_owner():
+    gt = _codes((0, 50), (1, 10), (0, 50))
+    out = idsse.filter_owner_flicks(gt, np.array([[1, 0, len(gt) - 1]]), min_frames=25)
+    assert (out == 0).all()
+    assert gt[55] == 1  # input untouched
+
+
+def test_filter_keeps_long_changes_and_dead_and_unknown():
+    gt = _codes((0, 30), (1, 30), (2, 5), (-1, 5), (1, 30))
+    out = idsse.filter_owner_flicks(gt, np.array([[1, 0, len(gt) - 1]]), min_frames=25)
+    assert (out == gt).all()
+
+
+def test_filter_short_run_at_stretch_start_takes_next_owner():
+    gt = _codes((2, 10), (1, 10), (0, 40), (2, 10))
+    out = idsse.filter_owner_flicks(gt, np.array([[1, 0, len(gt) - 1]]), min_frames=25)
+    assert (out[10:60] == 0).all() and (out[:10] == 2).all() and (out[60:] == 2).all()
+
+
+def test_filter_leaves_all_short_stretch_alone_and_respects_halves():
+    gt = _codes((0, 10), (1, 10), (2, 5), (0, 40), (1, 10))
+    halves = np.array([[1, 0, 64], [2, 65, 74]])  # last run is its own half
+    out = idsse.filter_owner_flicks(gt, halves, min_frames=25)
+    assert (out[:20] == gt[:20]).all()  # no long run in that stretch: unchanged
+    assert (out[65:] == 1).all()  # not absorbed across the half boundary

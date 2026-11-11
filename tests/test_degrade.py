@@ -18,8 +18,11 @@ def _clean(n=20000, slots=22, seed=1):
 
 
 def _share(d):
-    alive = (d["gt_codes"] == 0) | (d["gt_codes"] == 1)
-    return float((~d["ball_seen"][alive]).mean())
+    """Missing share over graded frames (rows inside the halves), as DATA.md states the 41 %."""
+    inside = np.zeros(len(d["ball_seen"]), bool)
+    for _, a, b in d["halves"]:
+        inside[a:b + 1] = True
+    return float((~d["ball_seen"][inside]).mean())
 
 
 def test_missing_share_hits_target():
@@ -27,6 +30,15 @@ def test_missing_share_hits_target():
     out = degrade(d, {"target_missing": 0.41}, seed=3)
     assert abs(_share(out) - 0.41) <= 0.01
     assert np.isnan(out["ball_xy"][~out["ball_seen"]]).all()
+
+
+def test_ball_also_drops_on_dead_frames_not_outside_halves():
+    d = _clean()
+    d["halves"] = np.array([[1, 0, 9999], [2, 12000, 19999]])  # 10000-11999 outside the halves
+    out = degrade(d, {"target_missing": 0.41}, seed=3)
+    assert abs(_share(out) - 0.41) <= 0.01
+    assert (~out["ball_seen"][d["gt_codes"] == 2]).any()
+    assert out["ball_seen"][10000:12000].all()
 
 
 def test_gaps_are_contiguous():
@@ -115,3 +127,43 @@ def test_gap_stats_include_jitter():
          "ball_xy": np.zeros((n, 2)), "halves": np.array([[1, 0, n - 1]])}
     p = barath_gap_stats.compute(d, bins=[1, 5, 25])
     assert p["player_jitter_m"] == 0.0 and p["ball_jitter_m"] == 0.0
+
+
+def test_gap_stats_input_stats_and_dup_rate():
+    n = 100
+    pl = np.zeros((n, 4, 2))
+    pl[:, 0, 0] = np.arange(n) * 0.2           # slot 0 moves 0.2 m per frame
+    pl[:, 1, 0] = 50.0
+    pl[:, 1, 0][60] = 60.0                     # slot 1: one 10 m jump out and one back
+    pl[:, 2, 0] = 20.0                         # slots 2 and 3: same team, 0.1 m apart -> duplicates
+    pl[:, 3, 0] = 20.1
+    d = {"ball_seen": np.ones(n, bool), "players_xy": pl, "ball_xy": np.zeros((n, 2)),
+         "slot_team": np.array([0, 0, 1, 1], dtype=np.int8), "halves": np.array([[1, 0, n - 1]])}
+    p = barath_gap_stats.compute(d, bins=[1, 5, 25])
+    s = p["input_stats"]
+    assert set(s["player_step_m"]) == {"p50", "p90", "p99"}
+    assert s["visible_per_team"] == [2.0, 2.0]
+    assert abs(s["track_jump_rate"] - 2 / (99 * 4)) < 1e-9
+    assert abs(s["dup_share"] - 0.5) < 1e-9   # 2 of 4 slots sit within 0.5 m of a teammate
+    assert abs(p["dup_prob"] - 0.25) < 1e-9   # one degrade() duplicate makes two close slots
+    assert p["swap_start_rate"] == s["track_jump_rate"]
+
+
+def test_team_swap_takes_opponent_positions_in_runs():
+    d = _clean(5000)
+    d["players_xy"][:, :11] = 0.0
+    d["players_xy"][:, 11:] = 100.0
+    out = degrade(d, {"swap_start_rate": 0.002, "swap_len_frames": 50, "dup_prob": 0.0,
+                      "target_visible_slots": None}, seed=1)
+    home = out["players_xy"][:, :11, 0]
+    swapped = np.isfinite(home) & (home == 100.0)
+    assert swapped.any() and not swapped.all()
+    assert swapped.sum() >= 0.5 * 50 * swapped[1:].__gt__(swapped[:-1]).sum()  # runs, not single frames
+
+
+def test_default_degrade_has_no_team_swap():
+    d = _clean(5000)
+    d["players_xy"][:, :11] = 0.0
+    d["players_xy"][:, 11:] = 100.0
+    out = degrade(d, {"target_visible_slots": None}, seed=1)
+    assert not (out["players_xy"][:, :11, 0] == 100.0).any()

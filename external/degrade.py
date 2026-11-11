@@ -4,10 +4,13 @@ Operates on the array dict of pipeline.data / external.idsse. Never touches `gt_
 `slot_team` or `fps`. Fully deterministic for a given (params, seed).
 
 Steps, in order:
-  1. ball dropout on ALIVE frames in contiguous gaps, gap lengths drawn from a histogram, until the
-     missing share of alive frames reaches `target_missing` (last gap truncated to land on it);
+  1. ball dropout on GRADED frames (rows inside the halves, alive or dead) in contiguous gaps, gap
+     lengths drawn from a histogram, until the missing share of graded frames reaches
+     `target_missing` (last gap truncated to land on it). DATA.md states the 41 % over graded frames,
+     and on BAR-ATH alive frames cannot be told apart without the ground truth;
   2. Gaussian position noise (sigma in metres) on every visible ball and player position;
-  3. player slots randomly dropped (down to `target_visible_slots` per frame if given, else
+  3. optional cross-team identity swaps (`swap_start_rate`, `swap_len_frames`; off by default);
+  4. player slots randomly dropped (down to `target_visible_slots` per frame if given, else
      `drop_prob`) and duplicated (a slot takes another same-team slot's position, `dup_prob`).
 
 DEFAULT_PARAMS are placeholders from organiser docs (DATA.md: ball missing on 41 % of graded
@@ -35,6 +38,8 @@ DEFAULT_PARAMS = {
     "target_visible_slots": 20.5,
     "drop_prob": 0.0,
     "dup_prob": 0.02,
+    "swap_start_rate": 0.0,   # per slot-frame; > 0 only from barath_gap_stats (track_jump_rate)
+    "swap_len_frames": 50,    # placeholder: 2 s per identity swap
 }
 _PASSTHROUGH = ("gt_codes", "halves", "slot_team", "fps")
 
@@ -63,15 +68,18 @@ def _added_sigma(target, own, fallback):
     return float(np.sqrt(max(0.0, float(target) ** 2 - own ** 2)))
 
 
-def _alive(d):
-    if "gt_codes" in d:
-        g = np.asarray(d["gt_codes"])
-        return (g == 0) | (g == 1)
-    return np.ones(len(d["ball_seen"]), dtype=bool)
+def _graded(d):
+    n = len(d["ball_seen"])
+    if "halves" not in d:
+        return np.ones(n, dtype=bool)
+    inside = np.zeros(n, dtype=bool)
+    for _, a, b in np.asarray(d["halves"]).reshape(-1, 3):
+        inside[int(a):int(b) + 1] = True
+    return inside
 
 
 def _drop_ball(d, out, params, rng):
-    alive = _alive(d)
+    alive = _graded(d)  # rows eligible for dropout
     seen = out["ball_seen"]
     n_alive = int(alive.sum())
     if n_alive == 0:
@@ -97,6 +105,7 @@ def _drop_ball(d, out, params, rng):
             rows = rows[: int(np.searchsorted(csum, need)) + 1]
             new = alive[rows] & seen[rows]
         missing += int(new.sum())
+        rows = rows[alive[rows]]
         seen[rows] = False
         out["ball_xy"][rows] = np.nan
         out["ball_speed"][rows] = np.nan
@@ -139,6 +148,18 @@ def degrade(d, params=None, seed=0):
     dup_sp = ps[rows, src]
     pl = np.where(dup[..., None], dup_xy, pl)
     ps = np.where(dup, dup_sp, ps)
+    # team swaps: from a random start, a slot shows a random opponent's track for swap_len_frames
+    # (an identity switch across teams; switches within a team do not change team-level control)
+    rate = float(p.get("swap_start_rate") or 0.0)
+    if rate > 0:
+        length = int(p.get("swap_len_frames", 50))
+        for f, sl in zip(*np.nonzero(rng.random((n, s)) < rate)):
+            opp = np.flatnonzero(team != team[sl])
+            if len(opp) == 0:
+                continue
+            o = opp[rng.integers(0, len(opp))]
+            pl[f:f + length, sl] = pl[f:f + length, o]
+            ps[f:f + length, sl] = ps[f:f + length, o]
     # drops
     drop_prob = float(p["drop_prob"])
     tv = p.get("target_visible_slots")

@@ -21,6 +21,46 @@ MATCH_IDS = ("J03WPY", "J03WMX", "J03WN1", "J03WOH", "J03WOY", "J03WQQ", "J03WR9
 CODES = {"H": 0, "A": 1, "D": 2}
 
 
+def filter_owner_flicks(gt_codes, halves, min_frames=25):
+    """Filtered reference labels: owner changes shorter than `min_frames` do not count.
+
+    Inside each alive stretch (consecutive H/A rows within one half), an owner run shorter than
+    `min_frames` takes the owner of the nearest earlier long run, or of the first long run if none
+    precedes it. Stretches with no long run, D and -1 rows are left as they are. Returns a copy.
+    Source: ticket "Criterios de éxito del control" (1.3); 25 frames = 1 s at IDSSE's 25 fps.
+    """
+    gt = np.asarray(gt_codes)
+    out = gt.copy()
+    for _, a, b in np.asarray(halves).reshape(-1, 3):
+        seg = gt[int(a):int(b) + 1]
+        alive = (seg == 0) | (seg == 1)
+        i = 0
+        while i < len(seg):
+            if not alive[i]:
+                i += 1
+                continue
+            j = i
+            while j < len(seg) and alive[j]:
+                j += 1
+            runs, k = [], i
+            while k < j:
+                m = k
+                while m < j and seg[m] == seg[k]:
+                    m += 1
+                runs.append((k, m, seg[k]))
+                k = m
+            longs = [r for r in runs if r[1] - r[0] >= min_frames]
+            if longs:
+                owner = longs[0][2]
+                for s, e, c in runs:
+                    if e - s >= min_frames:
+                        owner = c
+                    else:
+                        out[int(a) + s:int(a) + e] = owner
+            i = j
+    return out
+
+
 def from_dataset(ds):
     """Convert a kloppy TrackingDataset (loaded with only_alive=False) to the loader dict."""
     teams = ds.metadata.teams
