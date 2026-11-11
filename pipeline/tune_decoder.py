@@ -28,11 +28,15 @@ def main():
     ap.add_argument("--cache-dir", default=os.path.join(ROOT, "data", "external", "idsse"))
     ap.add_argument("--raw", action="store_true", help="do not degrade the tracking")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--degrade-params", default=os.path.join(ROOT, "data", "cache", "degrade_params.json"),
+                    help="JSON from external/barath_gap_stats.py (aggregate input stats; never printed)")
     args = ap.parse_args()
+    dparams = degrade.load_params(args.degrade_params)
+    print("degrade params:", "loaded from file" if dparams else "defaults (no file)")
 
     def loader(mid, cache_dir):
         d = idsse.load_idsse(mid, cache_dir)
-        return d if args.raw else degrade.degrade(d, seed=args.seed)
+        return d if args.raw else degrade.degrade(d, dparams, seed=args.seed)
 
     tag = "raw" if args.raw else "degraded"
     ids = list(idsse.MATCH_IDS)

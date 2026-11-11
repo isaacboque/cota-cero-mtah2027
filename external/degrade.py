@@ -24,6 +24,7 @@ DEFAULT_PARAMS = {
     "gap_bins": [1, 5, 25, 125, 625, 3125],      # frame-length bin edges [lo, hi)
     "gap_weights": [0.20, 0.25, 0.25, 0.20, 0.10],  # relative frequency of gaps per bin
     "noise_sigma_m": 0.3,
+    "noise_corr_frames": 50,  # noise is a moving average over this many frames (2 s); 1 = white noise
     "target_visible_slots": 20.5,
     "drop_prob": 0.0,
     "dup_prob": 0.02,
@@ -31,11 +32,35 @@ DEFAULT_PARAMS = {
 _PASSTHROUGH = ("gt_codes", "halves", "slot_team", "fps")
 
 
+def load_params(path):
+    """Read degrade params from a JSON file (e.g. data/cache/degrade_params.json). Only keys of
+    DEFAULT_PARAMS are kept; a missing file gives {}. Values are never printed or logged."""
+    import json
+    import os
+    if not os.path.exists(path):
+        return {}
+    with open(path) as fh:
+        raw = json.load(fh)
+    return {k: v for k, v in raw.items() if k in DEFAULT_PARAMS}
+
+
 def _alive(d):
     if "gt_codes" in d:
         g = np.asarray(d["gt_codes"])
         return (g == 0) | (g == 1)
     return np.ones(len(d["ball_seen"]), dtype=bool)
+
+
+def _noise(shape, sigma, corr, rng):
+    """Gaussian noise of std `sigma`, correlated in time (axis 0) by a moving average of `corr`
+    frames. Independent per-frame noise gives ~10 m/s velocity jitter at 25 fps, which tracking
+    data does not have (and which no velocity-based rule could survive)."""
+    corr = max(1, int(corr))
+    n = shape[0]
+    white = rng.normal(0.0, 1.0, (n + corr - 1,) + tuple(shape[1:]))
+    c = np.cumsum(white, axis=0)
+    c = np.concatenate([np.zeros((1,) + c.shape[1:]), c], axis=0)
+    return sigma * (c[corr:] - c[:-corr]) / np.sqrt(corr)
 
 
 def _drop_ball(d, out, params, rng):
@@ -87,8 +112,9 @@ def degrade(d, params=None, seed=0):
 
     sigma = float(p["noise_sigma_m"])
     if sigma > 0:
-        out["ball_xy"] += rng.normal(0.0, sigma, out["ball_xy"].shape)  # NaN stays NaN
-        out["players_xy"] += rng.normal(0.0, sigma, out["players_xy"].shape)
+        corr = p["noise_corr_frames"]
+        out["ball_xy"] += _noise(out["ball_xy"].shape, sigma, corr, rng)  # NaN stays NaN
+        out["players_xy"] += _noise(out["players_xy"].shape, sigma, corr, rng)
 
     pl, ps = out["players_xy"], out["players_speed"]
     n, s = pl.shape[:2]

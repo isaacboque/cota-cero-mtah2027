@@ -66,6 +66,15 @@ def test_noise_and_slot_drop():
     assert abs(vis - 11.0) < 0.5
 
 
+def test_load_params_keeps_known_keys_and_tolerates_missing_file(tmp_path):
+    from external.degrade import load_params
+    f = tmp_path / "p.json"
+    f.write_text('{"target_missing": 0.3, "gap_bins": [1, 9], "gap_weights": [1.0], "bogus": 5}')
+    p = load_params(str(f))
+    assert p == {"target_missing": 0.3, "gap_bins": [1, 9], "gap_weights": [1.0]}
+    assert load_params(str(tmp_path / "absent.json")) == {}
+
+
 def test_gap_stats_compute():
     n = 100
     seen = np.ones(n, bool)
@@ -76,3 +85,12 @@ def test_gap_stats_compute():
     assert abs(p["target_missing"] - 0.13) < 1e-9
     assert p["gap_weights"] == [0.5, 0.5]
     assert p["target_visible_slots"] == 4.0
+
+
+def test_noise_is_temporally_correlated_but_keeps_sigma():
+    d = _clean(20000)
+    out = degrade(d, {"target_missing": 0.0, "noise_sigma_m": 0.3, "dup_prob": 0.0,
+                      "target_visible_slots": None, "noise_corr_frames": 50}, seed=5)
+    err = out["ball_xy"] - d["ball_xy"]
+    assert 0.2 < err.std() < 0.4                 # marginal sigma kept
+    assert np.diff(err, axis=0).std() < 0.1      # frame-to-frame jitter small => velocity noise < ~2.5 m/s at 25 fps

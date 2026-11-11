@@ -66,6 +66,10 @@ def load_idsse(match_id, cache_dir="data/external/idsse"):
     """Load one IDSSE match. Local files `<cache_dir>/<id>_meta.xml` and `<id>_tracking.xml`
     are used if present (figshare may block scripted downloads with a WAF challenge); otherwise
     kloppy downloads them. Raw files are external data under CC BY 4.0; cache_dir is gitignored."""
+    npz = _cache_path(cache_dir, match_id)
+    if os.path.exists(npz):
+        with np.load(npz) as z:
+            return {k: z[k] for k in z.files}
     from kloppy import sportec
 
     meta = os.path.join(cache_dir, "{}_meta.xml".format(match_id))
@@ -74,4 +78,16 @@ def load_idsse(match_id, cache_dir="data/external/idsse"):
         ds = sportec.load_tracking(meta_data=meta, raw_data=raw, only_alive=False)
     else:
         ds = sportec.load_open_tracking_data(match_id=match_id, only_alive=False)
-    return from_dataset(ds)
+    d = from_dataset(ds)
+    save_cache(d, cache_dir, match_id)
+    return d
+
+
+def _cache_path(cache_dir, match_id):
+    return os.path.join(cache_dir, "{}_parsed.npz".format(match_id))
+
+
+def save_cache(d, cache_dir, match_id):
+    """Store the parsed arrays (parsing ~400 MB of XML takes minutes; the CV grid reloads a lot)."""
+    os.makedirs(cache_dir, exist_ok=True)
+    np.savez(_cache_path(cache_dir, match_id), **d)
