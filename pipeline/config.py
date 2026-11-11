@@ -22,8 +22,10 @@ R_CTRL_M = 2.0            # TUNE: nearest player must be within this distance of
 V_CTRL_MS = 3.0           # TUNE: ball speed relative to that player under this
 T_CTRL_FRAMES = 5         # TUNE: ... for at least this many consecutive frames (0.2 s); 1-frame touches never count
 
-# Decoder v3 (pipeline/decode.py). All placeholders: TUNE on degraded IDSSE leave-one-match-out CV
-# (flat region of the curve, not the max); the CV run id goes here once a run exists. None yet.
+# Decoder v3 (pipeline/decode.py). MIN_DWELL_HA_S, LOG_SWITCH_FAR and LOG_TO_D: SOURCE = CV run
+# idsse-cv-20261111-degraded-seed0 (pipeline/tune_decoder.py, degraded IDSSE, leave-one-match-out;
+# docs/llm/05-decisions-log.md, 2026-11-11). The grid is flat (all 27 settings within 0.002 mean spellF1),
+# so the centre of the grid was kept, not the maximum. The other constants below are untuned placeholders.
 MIN_DWELL_HA_S = 1.0      # TUNE: minimum H/A run (organisers: ~0.5 s boundary precision, flicker kills spellF1)
 MIN_DWELL_D_S = 1.0       # TUNE: minimum D run
 LOG_SWITCH_NEAR = -1.0    # TUNE: log cost of H<->A with a control event of the new team nearby

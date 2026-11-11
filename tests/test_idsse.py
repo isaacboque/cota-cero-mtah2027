@@ -58,3 +58,15 @@ def test_j03wpy():
     n = len(d["gt_codes"])
     assert d["players_xy"].shape[0] == n and d["ball_xy"].shape == (n, 2)
     assert all((d["gt_codes"] == c).sum() > 0 for c in (0, 1, 2))
+
+
+def test_parsed_match_cache_roundtrip(tmp_path):
+    import numpy as np
+    d = {"ball_xy": np.array([[1.0, np.nan]]), "ball_seen": np.array([True]),
+         "gt_codes": np.array([0], dtype=np.int8), "halves": np.array([[1, 0, 0]]),
+         "fps": np.array(25.0)}
+    idsse.save_cache(d, str(tmp_path), "ZZZ")
+    out = idsse.load_idsse("ZZZ", str(tmp_path))  # no raw files present: must come from the cache
+    assert set(out) == set(d)
+    for k in d:
+        assert np.array_equal(out[k], d[k], equal_nan=True)
