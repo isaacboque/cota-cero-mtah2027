@@ -55,10 +55,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--window", type=int, default=WINDOW, help="v1 only")
     parser.add_argument("--out", default=OUT_DIR)
-    parser.add_argument("--version", choices=("v1", "v2", "v3"), default=VERSION)
+    parser.add_argument("--version", choices=("v1", "v2", "v3", "v4"), default=VERSION)
     args = parser.parse_args()
 
-    if args.version in ("v2", "v3"):
+    if args.version in ("v2", "v3", "v4"):
         import numpy as np
         import games
         from pipeline import data
@@ -69,10 +69,15 @@ def main():
             codes = v2.predict_v2(d)
         else:
             import load_smart_tagging
-            from pipeline import decode, restarts
+            from pipeline import restarts
             home, away = baseline.team_names(meta)
             cues = restarts.restart_events(load_smart_tagging.load(), {home: 0, away: 1})
-            codes = decode.predict_v3(d, restarts=cues)
+            if args.version == "v3":
+                from pipeline import decode
+                codes = decode.predict_v3(d, restarts=cues)
+            else:
+                from pipeline import v4
+                codes = v4.predict_v4(d, restarts=cues)
         labels = np.array(["H", "A", "D"])[codes]
     else:
         codes = baseline.build()
