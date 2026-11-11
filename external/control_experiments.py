@@ -1,6 +1,6 @@
 """IDSSE experiments for the "Plan rediseño de control" map (issue #17). External data only.
 
-    python external/control_experiments.py base|noise|touch [--cache-dir data/external/idsse]
+    python external/control_experiments.py base|noise|touch|dead [--seeds 0 1 2] [--cache-dir ...]
 
 Degradation always uses explicit parameters (degrade.DEFAULT_PARAMS plus the overrides below),
 never data/cache/degrade_params.json: that file holds BAR-ATH statistics and must not feed a run
@@ -33,6 +33,12 @@ def predictors(exp):
          "v4best": lambda d: v4.predict_v4(d, kickoff_2nd=None, params=V4_BEST_SO_FAR)}
     if exp == "base":
         p["v4default"] = lambda d: v4.predict_v4(d, kickoff_2nd=None)
+    if exp == "dead":  # ticket #23: dead run lasts until the ball is struck
+        p = {}
+        for kick, ext in itertools.product((None, 4.0, 6.0, 8.0), (5.0, 15.0, 30.0)):
+            prm = {"RESTART_KICK_MS": kick, "RESTART_MAX_EXT_S": ext}
+            p["v4_kick{}_ext{}".format("-" if kick is None else int(kick), int(ext))] = (
+                lambda d, prm=prm: v4.predict_v4(d, kickoff_2nd=None, params=prm))
     if exp == "touch":
         p = {}
         for dv, gap in itertools.product((6.0, 8.0, 10.0, 12.0), ("reappear", "midpoint")):
@@ -42,12 +48,12 @@ def predictors(exp):
     return p
 
 
-def conditions(exp):
+def conditions(exp, seeds=(0, 1, 2)):
     """(mode, overrides, seed) tuples; mode 'raw' means no degradation."""
     if exp == "noise":
         return [("degraded", {"noise_sigma_m": s, "dup_prob": dp}, 0)
                 for s in (0.0, 0.1, 0.3) for dp in (0.0, 0.02)]
-    return [("raw", {}, 0)] + [("degraded", {}, s) for s in (0, 1, 2)]
+    return [("raw", {}, 0)] + [("degraded", {}, s) for s in seeds]
 
 
 def _spells(mask):
@@ -72,10 +78,12 @@ def dead_breakdown(gt, pred, fps):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("exp", choices=("base", "noise", "touch"))
+    ap.add_argument("exp", choices=("base", "noise", "touch", "dead"))
+    ap.add_argument("--seeds", type=int, nargs="+", default=[0, 1, 2])
+    ap.add_argument("--tag", default="", help="suffix for the output file")
     ap.add_argument("--cache-dir", default=os.path.join(ROOT, "data", "external", "idsse"))
     args = ap.parse_args()
-    preds, conds = predictors(args.exp), conditions(args.exp)
+    preds, conds = predictors(args.exp), conditions(args.exp, args.seeds)
     rows = []
     for mid in idsse.MATCH_IDS:
         clean = idsse.load_idsse(mid, args.cache_dir)
@@ -98,7 +106,7 @@ def main():
         print(mid, "done", flush=True)
     out_dir = os.path.join(ROOT, "external", "results")
     os.makedirs(out_dir, exist_ok=True)
-    path = os.path.join(out_dir, "ctrl_{}.csv".format(args.exp))
+    path = os.path.join(out_dir, "ctrl_{}{}.csv".format(args.exp, args.tag))
     with open(path, "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=list(rows[0]), lineterminator="\n")
         w.writeheader()

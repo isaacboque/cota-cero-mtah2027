@@ -188,6 +188,8 @@ def dead_mask(d, cues, c, kickoff_2nd):
     # the test is BALL_STATIC_MS. Capped, and never past the end of its half.
     cap = _frames(c["RESTART_MAX_EXT_S"], fps)
     lag = c["VEL_LAG_FRAMES"]
+    # restart = ball struck (RESTART_KICK_MS); None keeps the old test "ball no longer static"
+    kick = c.get("RESTART_KICK_MS") or c["BALL_STATIC_MS"]
 
     def first_speed(j, limit):
         # speed right after the ball reappears is NaN for `lag` rows; take the first finite one
@@ -203,7 +205,7 @@ def dead_mask(d, cues, c, kickoff_2nd):
             limit = min(b, i + cap)
             while i < limit:
                 if seen[i]:
-                    if np.isfinite(speed[i]) and speed[i] >= c["BALL_STATIC_MS"]:
+                    if np.isfinite(speed[i]) and speed[i] >= kick:
                         break
                     i += 1
                     continue
@@ -211,7 +213,7 @@ def dead_mask(d, cues, c, kickoff_2nd):
                 while j < limit and not seen[j]:
                     j += 1
                 v = first_speed(j, limit) if j < limit else np.nan
-                if not (np.isfinite(v) and v < c["BALL_STATIC_MS"]):
+                if not (np.isfinite(v) and v < kick):
                     break
                 i = j
             dead[a + stop:i] = True

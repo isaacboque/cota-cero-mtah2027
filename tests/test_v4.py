@@ -188,3 +188,24 @@ def test_sequences_confirm_on_control_or_two_contacts():
     seqs = v4.sequences(cs, gap_frames=50)
     assert [(q["team"], q["n"], q["confirmed"]) for q in seqs] == \
         [(1, 1, False), (0, 2, True), (1, 1, True)]
+
+
+# Ticket "Detector de balón muerto" (#23): after a throw-in the ball is carried back at walking
+# pace; play restarts only when it is thrown/kicked (RESTART_KICK_MS), not when it starts moving.
+def _carried_back_throw_in():
+    n = 800
+    way = [(0, 40, 34), (200, 52, 34), (230, 58, -1.5), (260, 58, -1.5), (300, 58, 0.5),
+           (460, 66, 0.5), (490, 66, 12.5), (n - 1, 66 + SLOW * 309, 12.5)]
+    return scene(way, n=n, holds=[(50, 200, HOME0), (300, 460, AWAY0), (495, 700, AWAY1)])
+
+
+def test_default_restart_ends_dead_when_ball_moves():
+    out = run(_carried_back_throw_in())
+    assert (out[240:280] == D).all()
+    assert not (out[320:455] == D).all()  # current behaviour: walking the ball back = in play
+
+
+def test_restart_kick_keeps_dead_until_the_ball_is_struck():
+    out = run(_carried_back_throw_in(), params={"RESTART_KICK_MS": 6.0, "RESTART_MAX_EXT_S": 30.0})
+    assert (out[240:455] == D).all()
+    assert (out[500:700] == A).all()
