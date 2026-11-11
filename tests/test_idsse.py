@@ -58,3 +58,36 @@ def test_j03wpy():
     n = len(d["gt_codes"])
     assert d["players_xy"].shape[0] == n and d["ball_xy"].shape == (n, 2)
     assert all((d["gt_codes"] == c).sum() > 0 for c in (0, 1, 2))
+
+
+def test_load_idsse_parses_once_then_reads_cache(tmp_path, monkeypatch):
+    calls = []
+
+    def fake_raw(match_id, cache_dir):
+        calls.append(match_id)
+        return idsse.from_dataset(_fake())
+
+    monkeypatch.setattr(idsse, "_load_raw", fake_raw)
+    first = idsse.load_idsse("J03WPY", str(tmp_path))
+    second = idsse.load_idsse("J03WPY", str(tmp_path))
+    assert calls == ["J03WPY"]                      # the slow parse ran once
+    assert idsse.cache_path("J03WPY", str(tmp_path)).endswith("J03WPY_arrays_v1.npz")
+    assert set(first) == set(second)
+    for k in first:
+        np.testing.assert_array_equal(first[k], second[k])
+    assert not list(tmp_path.glob("*.tmp.npz"))
+
+
+def test_load_idsse_rebuilds_cache_when_xml_is_newer(tmp_path, monkeypatch):
+    import os
+    import time
+    calls = []
+    monkeypatch.setattr(idsse, "_load_raw",
+                        lambda m, c: calls.append(m) or idsse.from_dataset(_fake()))
+    idsse.load_idsse("J03WPY", str(tmp_path))
+    xml = tmp_path / "J03WPY_tracking.xml"
+    xml.write_text("<new/>")
+    later = time.time() + 10
+    os.utime(xml, (later, later))
+    idsse.load_idsse("J03WPY", str(tmp_path))
+    assert calls == ["J03WPY", "J03WPY"]

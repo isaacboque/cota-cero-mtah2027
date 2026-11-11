@@ -113,7 +113,7 @@ def contacts(d, dead, c):
         touch = seen & (dmin <= c["R_CTRL_M"]) & (dv > c["DV_TOUCH_MS"])
     items = [(a, b, t, False) for a, b, t in _team_runs(np.where(touch, near, -1))]
     _, runs = control_team(d, r=c["R_CTRL_M"], v_max=c["V_CTRL_MS"], t_min=c["T_CTRL_FRAMES"],
-                           fps=fps)
+                           fps=fps, lag=c["VEL_LAG_FRAMES"])
     items += [(a, b, t, True) for a, b, t in runs]
 
     merged = []

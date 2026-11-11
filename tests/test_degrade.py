@@ -76,3 +76,42 @@ def test_gap_stats_compute():
     assert abs(p["target_missing"] - 0.13) < 1e-9
     assert p["gap_weights"] == [0.5, 0.5]
     assert p["target_visible_slots"] == 4.0
+
+
+def test_jitter_sigma_recovers_noise_on_moving_tracks():
+    rng = np.random.default_rng(0)
+    t = np.arange(5000)[:, None]
+    clean = np.concatenate([t * 0.2, 30 + 5 * np.sin(t / 40.0)], axis=1)  # smooth motion
+    from external.degrade import jitter_sigma
+    assert jitter_sigma(clean) < 0.01
+    noisy = clean + rng.normal(0, 0.15, clean.shape)
+    assert abs(jitter_sigma(noisy) - 0.15) < 0.01
+
+
+def test_degrade_adds_only_the_missing_jitter():
+    from external.degrade import jitter_sigma
+    d = _clean(4000)
+    t = np.arange(4000)[:, None, None]
+    d["players_xy"] = np.broadcast_to(t * 0.1, (4000, 22, 2)).copy()   # smooth, no own jitter
+    d["ball_xy"] = np.concatenate([np.arange(4000)[:, None] * 0.3] * 2, axis=1)
+    base = {"target_missing": 0.0, "dup_prob": 0.0, "target_visible_slots": None}
+    out = degrade(d, dict(base, player_jitter_m=0.2, ball_jitter_m=0.1), seed=1)
+    assert abs(jitter_sigma(out["players_xy"]) - 0.2) < 0.02
+    assert abs(jitter_sigma(out["ball_xy"]) - 0.1) < 0.02
+    already = degrade(d, dict(base, noise_sigma_m=0.3), seed=2)       # input jitter 0.3 > target
+    again = degrade(already, dict(base, player_jitter_m=0.2), seed=3)
+    assert np.allclose(again["players_xy"], already["players_xy"])    # nothing added
+
+
+def test_default_degrade_adds_no_noise():
+    d = _clean(2000)
+    out = degrade(d, {"target_missing": 0.0, "dup_prob": 0.0, "target_visible_slots": None}, seed=0)
+    assert np.array_equal(out["players_xy"], d["players_xy"])
+
+
+def test_gap_stats_include_jitter():
+    n = 200
+    d = {"ball_seen": np.ones(n, bool), "players_xy": np.zeros((n, 4, 2)),
+         "ball_xy": np.zeros((n, 2)), "halves": np.array([[1, 0, n - 1]])}
+    p = barath_gap_stats.compute(d, bins=[1, 5, 25])
+    assert p["player_jitter_m"] == 0.0 and p["ball_jitter_m"] == 0.0

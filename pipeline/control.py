@@ -7,16 +7,17 @@ consecutive frames. Ball-missing frames never count. Constants in pipeline/confi
 import numpy as np
 
 from pipeline import config
+from pipeline.features import centred_velocity
 
 
-def _velocity(xy, fps):
-    v = np.full(xy.shape, np.nan)
-    v[1:] = (xy[1:] - xy[:-1]) * fps
-    return v
+def _velocity(xy, fps, lag=config.VEL_LAG_FRAMES):
+    """Centred velocity over 2*lag rows (pipeline.features.centred_velocity). A 1-row difference
+    turns 0.1 m of tracking jitter into ~3.5 m/s of fake speed."""
+    return centred_velocity(xy, fps, lag)
 
 
 def control_team(d, r=config.R_CTRL_M, v_max=config.V_CTRL_MS, t_min=config.T_CTRL_FRAMES,
-                 fps=config.FPS):
+                 fps=config.FPS, lag=config.VEL_LAG_FRAMES):
     """Per row: team (0/1) in control during a qualifying run, else -1. Also returns the
     per-row nearest distance. Returns (team array int8, run list [(start, stop, team)])."""
     ball = np.asarray(d["ball_xy"], dtype=float)
@@ -28,7 +29,7 @@ def control_team(d, r=config.R_CTRL_M, v_max=config.V_CTRL_MS, t_min=config.T_CT
     j = np.argmin(dist, axis=1)
     rows = np.arange(n)
     dmin = dist[rows, j]
-    rel = np.linalg.norm(_velocity(ball, fps) - _velocity(pl, fps)[rows, j], axis=-1)
+    rel = np.linalg.norm(_velocity(ball, fps, lag) - _velocity(pl, fps, lag)[rows, j], axis=-1)
     with np.errstate(invalid="ignore"):
         ok = np.isfinite(dmin) & (dmin <= r) & (rel < v_max)
     cand = np.where(ok, team[j], -1).astype(np.int8)

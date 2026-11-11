@@ -19,16 +19,48 @@ import numpy as np
 # Source of each value: target_missing = DATA.md (41 % of graded frames); target_visible_slots =
 # 08-model-plan.md section 1 (~20.5 visible); noise_sigma_m, dup_prob, gap_* = placeholders to be
 # replaced by degrade_params.json (aggregate BAR-ATH input stats, computed by a human).
+#
+# Position noise: if `player_jitter_m` / `ball_jitter_m` are given (the BAR-ATH frame-to-frame jitter
+# measured by barath_gap_stats.py), only the noise IDSSE is missing is added:
+# sqrt(max(0, target^2 - own^2)), own = jitter_sigma() of the clean input. Otherwise `noise_sigma_m`
+# is added as is. Its default is 0: an unmeasured 0.3 m of independent per-frame noise made every
+# 1-frame velocity useless (10+ m/s of fake speed) and broke v2/v3 in the first IDSSE run (11 Nov).
 DEFAULT_PARAMS = {
     "target_missing": 0.41,
     "gap_bins": [1, 5, 25, 125, 625, 3125],      # frame-length bin edges [lo, hi)
     "gap_weights": [0.20, 0.25, 0.25, 0.20, 0.10],  # relative frequency of gaps per bin
-    "noise_sigma_m": 0.3,
+    "noise_sigma_m": 0.0,
+    "player_jitter_m": None,
+    "ball_jitter_m": None,
     "target_visible_slots": 20.5,
     "drop_prob": 0.0,
     "dup_prob": 0.02,
 }
 _PASSTHROUGH = ("gt_codes", "halves", "slot_team", "fps")
+
+
+def jitter_sigma(xy):
+    """Robust per-frame position noise (m) from second differences along rows.
+
+    For independent noise of sigma per coordinate, x[t+1] - 2x[t] + x[t-1] has std sqrt(6)*sigma,
+    while real motion adds only acceleration/fps^2 (a few mm at 25 fps). The median absolute
+    deviation keeps kicks and track swaps from inflating it. 0.0 if there is too little data.
+    """
+    xy = np.asarray(xy, dtype=float)
+    if len(xy) < 3:
+        return 0.0
+    d2 = xy[2:] - 2.0 * xy[1:-1] + xy[:-2]
+    v = d2[np.isfinite(d2)]
+    if v.size < 10:
+        return 0.0
+    mad = np.median(np.abs(v - np.median(v)))
+    return float(1.4826 * mad / np.sqrt(6.0))
+
+
+def _added_sigma(target, own, fallback):
+    if target is None:
+        return float(fallback)
+    return float(np.sqrt(max(0.0, float(target) ** 2 - own ** 2)))
 
 
 def _alive(d):
@@ -85,10 +117,12 @@ def degrade(d, params=None, seed=0):
 
     _drop_ball(d, out, p, rng)
 
-    sigma = float(p["noise_sigma_m"])
-    if sigma > 0:
-        out["ball_xy"] += rng.normal(0.0, sigma, out["ball_xy"].shape)  # NaN stays NaN
-        out["players_xy"] += rng.normal(0.0, sigma, out["players_xy"].shape)
+    sigma_ball = _added_sigma(p.get("ball_jitter_m"), jitter_sigma(d["ball_xy"]), p["noise_sigma_m"])
+    sigma_pl = _added_sigma(p.get("player_jitter_m"), jitter_sigma(d["players_xy"]), p["noise_sigma_m"])
+    if sigma_ball > 0:
+        out["ball_xy"] += rng.normal(0.0, sigma_ball, out["ball_xy"].shape)  # NaN stays NaN
+    if sigma_pl > 0:
+        out["players_xy"] += rng.normal(0.0, sigma_pl, out["players_xy"].shape)
 
     pl, ps = out["players_xy"], out["players_speed"]
     n, s = pl.shape[:2]

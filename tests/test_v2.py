@@ -15,7 +15,7 @@ def _scene(plan, n=N, halves=None):
     pl = np.zeros((n, 4, 2))
     pl[:, :, 1] = 10.0
     pl[:, :, 0] = np.array([5.0, 10.0, 95.0, 100.0]) + 0.04 * t[:, None]
-    pl[:, :, 1] += (t[:, None] % 2) * 0.3  # jitter keeps team speed > slowdown threshold
+    pl[:, :, 1] += 1.5 * np.sin(np.pi * t[:, None] / 25)  # ~3 m/s: team speed > slowdown threshold
     for a, b, s in plan:
         pl[a:b, s] = ball[a:b] + [1.0, 0.0]
     return {"ball_xy": ball, "ball_seen": np.ones(n, bool), "players_xy": pl,
@@ -26,7 +26,8 @@ def _scene(plan, n=N, halves=None):
 def test_control_requires_min_frames():
     d = _scene([(100, 103, 0), (200, 260, 2)])
     ev = control.control_events(d)
-    assert [(f, t) for f, t, _ in ev] == [(201, 1)]  # row 200 is the teleport step: relative speed too high
+    # row 200 is the teleport step; the centred velocity (VEL_LAG_FRAMES=3) sees it on rows 197-202
+    assert [(f, t) for f, t, _ in ev] == [(203, 1)]
 
 
 def test_one_frame_touch_does_not_flip():
@@ -80,3 +81,13 @@ def test_report_numbers():
     assert r["runs_under_1s"] == 2 and r["stoppages"] == 2
     assert abs(r["d_share"] - 15 / 80) < 1e-9
     assert "D share" in report.format_report(r)
+
+
+def test_control_survives_realistic_tracking_jitter():
+    rng = np.random.default_rng(0)
+    d = _scene([(50, 300, 0), (350, 550, 2)])
+    d["ball_xy"] = d["ball_xy"] + rng.normal(0, 0.1, d["ball_xy"].shape)
+    d["players_xy"] = d["players_xy"] + rng.normal(0, 0.1, d["players_xy"].shape)
+    out = v2.predict_v2(d, kickoff_2nd=None)
+    assert (out[100:300] == H).mean() > 0.95
+    assert (out[400:550] == A).mean() > 0.95

@@ -8,6 +8,7 @@ of the curve, not the maximum, then copy it into pipeline/config.py with this ru
 """
 import argparse
 import itertools
+import json
 import os
 import sys
 
@@ -30,6 +31,25 @@ V4_GRID = {
 }
 
 
+PARAMS_PATH = os.path.join(ROOT, "data", "cache", "degrade_params.json")
+
+
+def degrade_params(path=PARAMS_PATH):
+    """BAR-ATH input statistics written by external/barath_gap_stats.py (run by a human), or None
+    for degrade.DEFAULT_PARAMS. Never prints the values: they are aggregate BAR-ATH statistics."""
+    if os.path.exists(path):
+        with open(path) as fh:
+            params = json.load(fh)
+        print("degradation: BAR-ATH statistics from {} ({})".format(
+            os.path.relpath(path, ROOT),
+            "with jitter" if "player_jitter_m" in params else
+            "NO jitter keys: re-run external/barath_gap_stats.py"))
+        return params
+    print("degradation: {} not found, using placeholder defaults; run "
+          "external/barath_gap_stats.py first".format(os.path.relpath(path, ROOT)))
+    return None
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--cache-dir", default=os.path.join(ROOT, "data", "external", "idsse"))
@@ -37,9 +57,11 @@ def main():
     ap.add_argument("--seed", type=int, default=0)
     args = ap.parse_args()
 
+    params = None if args.raw else degrade_params()
+
     def loader(mid, cache_dir):
         d = idsse.load_idsse(mid, cache_dir)
-        return d if args.raw else degrade.degrade(d, seed=args.seed)
+        return d if args.raw else degrade.degrade(d, params, seed=args.seed)
 
     tag = "raw" if args.raw else "degraded"
     ids = list(idsse.MATCH_IDS)

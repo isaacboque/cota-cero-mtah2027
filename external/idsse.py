@@ -62,10 +62,10 @@ def from_dataset(ds):
     return out
 
 
-def load_idsse(match_id, cache_dir="data/external/idsse"):
-    """Load one IDSSE match. Local files `<cache_dir>/<id>_meta.xml` and `<id>_tracking.xml`
-    are used if present (figshare may block scripted downloads with a WAF challenge); otherwise
-    kloppy downloads them. Raw files are external data under CC BY 4.0; cache_dir is gitignored."""
+def _load_raw(match_id, cache_dir):
+    """Parse one match with kloppy (slow: a full-match XML). Local files `<cache_dir>/<id>_meta.xml`
+    and `<id>_tracking.xml` are used if present (figshare blocks scripted downloads with a WAF
+    challenge); otherwise kloppy downloads them."""
     from kloppy import sportec
 
     meta = os.path.join(cache_dir, "{}_meta.xml".format(match_id))
@@ -75,3 +75,33 @@ def load_idsse(match_id, cache_dir="data/external/idsse"):
     else:
         ds = sportec.load_open_tracking_data(match_id=match_id, only_alive=False)
     return from_dataset(ds)
+
+
+# Bump when from_dataset's output changes, so stale caches are not reused.
+CACHE_VERSION = 1
+
+
+def cache_path(match_id, cache_dir):
+    return os.path.join(cache_dir, "{}_arrays_v{}.npz".format(match_id, CACHE_VERSION))
+
+
+def load_idsse(match_id, cache_dir="data/external/idsse", use_cache=True):
+    """Load one IDSSE match as the loader dict.
+
+    The first call parses the XML with kloppy and saves the arrays to `<cache_dir>/<id>_arrays_vN.npz`;
+    later calls read that file in seconds. The cache is rebuilt if the tracking XML is newer than
+    it. Raw files and caches are external data under CC BY 4.0, kept under the gitignored data/.
+    """
+    npz = cache_path(match_id, cache_dir)
+    raw = os.path.join(cache_dir, "{}_tracking.xml".format(match_id))
+    if use_cache and os.path.exists(npz) and (
+            not os.path.exists(raw) or os.path.getmtime(npz) >= os.path.getmtime(raw)):
+        with np.load(npz) as z:
+            return {k: z[k] for k in z.files}
+    out = _load_raw(match_id, cache_dir)
+    if use_cache:
+        os.makedirs(cache_dir, exist_ok=True)
+        tmp = npz[:-len(".npz")] + ".tmp.npz"
+        np.savez_compressed(tmp, **out)
+        os.replace(tmp, npz)  # never leave a half-written cache behind
+    return out

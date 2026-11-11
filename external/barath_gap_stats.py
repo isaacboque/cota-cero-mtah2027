@@ -5,6 +5,7 @@ games.asset_paths(), computes on graded frames (the two halves):
   - the histogram of ball-missing run lengths (frames), binned by DEFAULT_BINS,
   - the share of graded frames with the ball missing,
   - the mean number of visible player slots per frame,
+  - the frame-to-frame position jitter of players and ball (degrade.jitter_sigma),
 and writes only data/cache/degrade_params.json (gitignored with data/*). It prints nothing but
 "written <path>". Nobody pastes that file or any number from it into an AI service.
 
@@ -19,6 +20,7 @@ import numpy as np
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 import games  # noqa: E402
+from external.degrade import jitter_sigma  # noqa: E402
 from pipeline import data  # noqa: E402
 
 DEFAULT_BINS = [1, 5, 25, 125, 625, 3125, 10 ** 7]
@@ -38,12 +40,16 @@ def compute(d, bins=DEFAULT_BINS):
         lengths.extend((np.flatnonzero(edges == -1) - np.flatnonzero(edges == 1)).tolist())
     hist, _ = np.histogram(lengths, bins=bins)
     total = hist.sum()
-    return {
+    out = {
         "target_missing": float(np.mean(~seen[graded])),
         "gap_bins": [int(x) for x in bins],
         "gap_weights": [float(x) / total for x in hist] if total else [1.0 / (len(bins) - 1)] * (len(bins) - 1),
         "target_visible_slots": float(np.mean(vis[graded])),
+        "player_jitter_m": jitter_sigma(np.asarray(d["players_xy"])[graded]),
     }
+    if "ball_xy" in d:
+        out["ball_jitter_m"] = jitter_sigma(np.asarray(d["ball_xy"])[graded])
+    return out
 
 
 def main():

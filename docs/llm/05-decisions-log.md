@@ -76,6 +76,26 @@ Template:
 - Compliance check: no BAR-ATH data read or run.
 - Owner: Isaac
 
+## 2026-11-11 — First IDSSE run discarded; degradation and velocity fixes
+- Finding: the first `tune_decoder.py` run (degraded IDSSE) gave v1 0.19, v2 0.00, v3 0.02-0.024 for all 27 settings, v4 0.24-0.29 spellF1. v2's macroF1 0.2062 equals an all-D answer: no control run was ever detected. Two causes: (1) `degrade.py` added an unmeasured 0.3 m of independent noise per frame, which turns 1-frame velocities into 10+ m/s of fake speed, so `V_CTRL_MS` never held and the slowdown rule never fired; (2) `tune_decoder.py` never read `data/cache/degrade_params.json`, so the BAR-ATH gap statistics were not used. The v4 grid winner (`DV_TOUCH_MS`=6) is likely an artefact of that noise. **No parameter or version is chosen from that run.**
+- Decision:
+  - `features._speed` and `control._velocity` use a centred velocity over `2*VEL_LAG_FRAMES` rows (`features.centred_velocity`, window clipped at the ends), as v4 already did for touches.
+  - `barath_gap_stats.py` also writes `player_jitter_m` / `ball_jitter_m`: robust per-frame position noise from second differences (`degrade.jitter_sigma`, MAD / sqrt(6)). Run by a human; values never shown to an AI.
+  - `degrade.py` adds only the jitter IDSSE lacks, sqrt(max(0, target^2 - own^2)); without measured targets it adds none (`noise_sigma_m` default 0.3 -> 0.0).
+  - `tune_decoder.py` loads `degrade_params.json` and prints only whether it was found (never its values).
+- Source / justification: tracking noise model (independent per-frame noise: 2nd difference has std sqrt(6)*sigma); the failure analysis above. No BAR-ATH number was seen by anyone using an AI.
+- Data used to choose it: IDSSE run output (external) and synthetic tests (`tests/test_degrade.py`, `tests/test_v2.py::test_control_survives_realistic_tracking_jitter`).
+- Next: re-run `external/barath_gap_stats.py`, then `pipeline/tune_decoder.py` and `--raw`.
+- Compliance check: BAR-ATH statistics computed and kept by a human; IDSSE only for scoring.
+- Owner: Elena
+
+## 2026-11-11 — IDSSE array cache
+- Decision: `external/idsse.load_idsse` parses each match's XML with kloppy once and saves the arrays to `data/external/idsse/<id>_arrays_v1.npz` (gitignored); later loads read the cache. Rebuilt if the tracking XML is newer; `CACHE_VERSION` is bumped when `from_dataset` changes. Reason: `tune_decoder.py` reloads every match for every setting (41 settings x 7 matches).
+- Check on real data (run by a human, external data only): J03WPY loads with 146 211 frames, ball state known on every frame (H 51 192, A 30 268, D 64 751, unknown 0), ball seen on 100 % of frames, so degradation (T4) is required before tuning.
+- Data used to choose it: none; synthetic tests in `tests/test_idsse.py`.
+- Compliance check: IDSSE only (CC BY 4.0); no BAR-ATH data.
+- Owner: Elena
+
 ## 2026-11-11 — v4: rules of "Reglas de posesión" v0.2 (T8b)
 - Decision: `pipeline/v4.py`. Rule by rule (sections of the team document):
   - §3 contacts: a control run (`R_CTRL_M`, `V_CTRL_MS`, `T_CTRL_FRAMES`) or a touch (nearest player within `R_CTRL_M` while the ball's velocity changes by more than `DV_TOUCH_MS`). A ball passing a player at constant velocity is no contact: covers the aerial ball over a player (no height in the tracking) and a rival next to the ball who does not touch it (§5).

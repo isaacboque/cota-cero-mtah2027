@@ -1,7 +1,7 @@
 """v4 on synthetic plays, one test per rule of the team document "Reglas de posesion" v0.2.
 
-Every scene is invented: a ball path through waypoints, players parked far away (jittering so the
-"everybody stopped" rule never fires), and players brought to the ball where the play needs them.
+Every scene is invented: a ball path through waypoints, players parked far away (moving at ~3 m/s
+so the "everybody stopped" rule never fires), and players brought to the ball where the play needs them.
 Nothing here reads BAR-ATH data or ground truth.
 """
 import numpy as np
@@ -26,7 +26,7 @@ def scene(waypoints, n=N, holds=(), touches=(), stands=(), missing=(), halves=No
                      np.interp(t, wf, [w[2] for w in waypoints])], axis=1)
     pl = np.zeros((n, 4, 2))
     pl[:, :, 0] = [5.0, 10.0, 95.0, 100.0]
-    pl[:, :, 1] = 10.0 + (t[:, None] % 2) * 0.3
+    pl[:, :, 1] = 10.0 + 1.5 * np.sin(np.pi * t[:, None] / 25)  # ~3 m/s, never "everybody stopped"
     for a, b, slot in holds:
         pl[a:b, slot] = ball[a:b] + [1.0, 0.0]
     for f, slot in touches:
