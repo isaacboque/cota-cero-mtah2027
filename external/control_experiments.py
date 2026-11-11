@@ -1,6 +1,6 @@
 """IDSSE experiments for the "Plan rediseño de control" map (issue #17). External data only.
 
-    python external/control_experiments.py base|noise|touch|dead [--seeds 0 1 2] [--cache-dir ...]
+    python external/control_experiments.py base|noise|touch|dead|deadstart [--seeds 0 1 2] [--cache-dir ...]
 
 Degradation always uses explicit parameters (degrade.DEFAULT_PARAMS plus the overrides below),
 never data/cache/degrade_params.json: that file holds BAR-ATH statistics and must not feed a run
@@ -39,6 +39,31 @@ def predictors(exp):
             prm = {"RESTART_KICK_MS": kick, "RESTART_MAX_EXT_S": ext}
             p["v4_kick{}_ext{}".format("-" if kick is None else int(kick), int(ext))] = (
                 lambda d, prm=prm: v4.predict_v4(d, kickoff_2nd=None, params=prm))
+    if exp == "deadstart":  # ticket #23: signals that START a dead run (pipeline/deadball.py)
+        from pipeline import config
+        # third pass: find the flat region of SLOW_TEAM_SPEED_MS (2 was the edge) at margin 0.25
+        variants = {"base": {}}
+        for v in (2.0, 2.5, 3.0):
+            variants["margin0.25_speed{}".format(v)] = {"OOB_MARGIN_M": 0.25, "SLOW_TEAM_SPEED_MS": v}
+        variants["margin0_speed2.0"] = {"OOB_MARGIN_M": 0.0, "SLOW_TEAM_SPEED_MS": 2.0}
+
+        def patched(over):
+            def fn(d):
+                from pipeline import features
+                old = {k: getattr(config, k) for k in over}
+                old_def = features.out_of_bounds.__defaults__
+                try:
+                    for k, v in over.items():
+                        setattr(config, k, v)  # deadball.py reads config at call time
+                    if "OOB_MARGIN_M" in over:  # bound as a default argument at import
+                        features.out_of_bounds.__defaults__ = (over["OOB_MARGIN_M"],) + old_def[1:]
+                    return v4.predict_v4(d, kickoff_2nd=None)
+                finally:
+                    for k, v in old.items():
+                        setattr(config, k, v)
+                    features.out_of_bounds.__defaults__ = old_def
+            return fn
+        p = {"v4_" + k: patched(v) for k, v in variants.items()}
     if exp == "touch":
         p = {}
         for dv, gap in itertools.product((6.0, 8.0, 10.0, 12.0), ("reappear", "midpoint")):
@@ -78,7 +103,7 @@ def dead_breakdown(gt, pred, fps):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("exp", choices=("base", "noise", "touch", "dead"))
+    ap.add_argument("exp", choices=("base", "noise", "touch", "dead", "deadstart"))
     ap.add_argument("--seeds", type=int, nargs="+", default=[0, 1, 2])
     ap.add_argument("--tag", default="", help="suffix for the output file")
     ap.add_argument("--cache-dir", default=os.path.join(ROOT, "data", "external", "idsse"))

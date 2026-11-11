@@ -42,7 +42,8 @@ def test_features_speed_and_missing_run():
 
 
 def test_features_oob_with_margin():
-    ball = np.array([[50, 30], [-0.3, 30], [-1.0, 30], [50, 70.0]])
+    m = config.OOB_MARGIN_M
+    ball = np.array([[50, 30], [-0.8 * m, 30], [-m - 0.5, 30], [50, 70.0]])
     f = features.compute_features(_d(4, ball=ball))
     assert f["oob"].tolist() == [False, False, True, True]
 
@@ -123,3 +124,18 @@ def test_hard_dead_outside_halves_and_before_kickoff():
 
 def test_default_kickoff_constant():
     assert config.KICKOFF_2ND == 113742
+
+
+def test_slowdown_survives_one_teleporting_track():
+    """A duplicated/switched track that jumps to a teammate for single frames (degrade.py's
+    duplicates, ticket #23) must not hide a stoppage: the team speed is a median."""
+    n = 400
+    pl = np.zeros((n, 6, 2))
+    pl[:, :, 1] = 30.0
+    pl[:, :, 0] = np.array([10.0, 20.0, 30.0, 70.0, 80.0, 90.0])
+    pl[:150, :, 0] += np.arange(150)[:, None] * 0.2  # 5 m/s, then everyone stands still
+    pl[150::7, 0, 0] += 40.0                          # slot 0 teleports 40 m every 7th frame
+    d = _d(n, players=pl)
+    d["slot_team"] = np.array([0, 0, 0, 1, 1, 1], dtype=np.int8)
+    m = deadball.dead_mask(d, kickoff_2nd=None)
+    assert m[260:].all() and not m[:100].any()

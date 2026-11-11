@@ -75,8 +75,8 @@ def deadball_score(d, feats=None, kickoff_2nd=config.KICKOFF_2ND):
 
     # 2. global slowdown: both teams slow, ball static or missing, for >= SLOW_MIN_S
     with np.errstate(invalid="ignore"):
-        slow = (f["mean_speed_home"] < config.SLOW_TEAM_SPEED_MS) & \
-               (f["mean_speed_away"] < config.SLOW_TEAM_SPEED_MS)
+        slow = (f["med_speed_home"] < config.SLOW_TEAM_SPEED_MS) & \
+               (f["med_speed_away"] < config.SLOW_TEAM_SPEED_MS)
         static = ~seen | (f["ball_speed"] < config.BALL_STATIC_MS)
     score += config.W_SLOW * min_run(slow & static, int(config.SLOW_MIN_S * fps))
 

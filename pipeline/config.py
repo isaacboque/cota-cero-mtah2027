@@ -39,10 +39,10 @@ DEAD_P_CLIP = 0.02        # TUNE: clip of the dead-ball score before taking logs
 LOG_HARD = -50.0          # structural: alive emission on hard-D frames (outside halves / pre-kick-off)
 
 # Dead-ball detector (pipeline/deadball.py)
-OOB_MARGIN_M = 0.5        # RULE: ball is out when wholly over the line (ball radius ~0.11 m); margin absorbs tracking noise -> TUNE
+OOB_MARGIN_M = 0.25       # RULE: ball out when wholly over the line (radius ~0.11 m); margin absorbs tracking noise. IDSSE CV ctrl_deadstart_flat (ticket #23): 0 and 0.25 within 0.01; 0.25 kept for unmeasured BAR-ATH noise (#25)
 OOB_ENTER_FRAMES = 5      # TUNE: consecutive out-of-bounds frames before the hysteresis turns on
 OOB_EXIT_FRAMES = 10      # TUNE: consecutive in-bounds frames before it turns off
-SLOW_TEAM_SPEED_MS = 1.0  # TUNE: both teams' mean player speed under this = global slowdown
+SLOW_TEAM_SPEED_MS = 2.5  # both teams' MEDIAN player speed under this = global slowdown. IDSSE CV ctrl_deadstart_flat (ticket #23): flat 2.0-3.0, middle taken
 SLOW_MIN_S = 4.0          # TUNE: slowdown must last at least this long
 BALL_STATIC_MS = 1.0      # TUNE: ball slower than this counts as static
 MISSING_RUN_MIN_S = 3.0   # TUNE: ball-missing run at least this long can be a stoppage

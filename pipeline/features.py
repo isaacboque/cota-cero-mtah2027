@@ -3,6 +3,8 @@
 Distances in metres, speeds in m/s derived from positions (the file's own speed unit is not
 relied on), so both sources behave the same. NaN means "not available this frame".
 """
+import warnings
+
 import numpy as np
 
 from pipeline import config
@@ -66,6 +68,12 @@ def compute_features(d, r=config.R_PRESSURE_M, fps=config.FPS):
             cnt = np.isfinite(sub).sum(axis=1)
             tot = np.where(np.isfinite(sub), sub, 0.0).sum(axis=1)
             f["mean_speed_" + name] = np.where(cnt > 0, tot / np.maximum(cnt, 1), np.nan)
+            # median: one teleporting (duplicated/switched) track reads 50+ m/s and would make
+            # the mean useless for "everybody stopped" (ticket #23)
+            with warnings.catch_warnings():  # all-NaN rows (no player seen) -> NaN, silently
+                warnings.simplefilter("ignore", RuntimeWarning)
+                f["med_speed_" + name] = (np.nanmedian(np.where(np.isfinite(sub), sub, np.nan), axis=1)
+                                          if sub.shape[1] else np.full(len(sub), np.nan))
     f["gap"] = f["d_away"] - f["d_home"]
 
     bspeed = _speed(ball, fps)
