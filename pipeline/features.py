@@ -8,12 +8,26 @@ import numpy as np
 from pipeline import config
 
 
-def _speed(xy, fps):
-    """|Δxy|*fps between consecutive rows; NaN unless both rows are finite. Row 0 is NaN."""
-    out = np.full(xy.shape[:-1], np.nan)
-    step = np.linalg.norm(xy[1:] - xy[:-1], axis=-1) * fps
-    out[1:] = step
-    return out
+def centred_velocity(xy, fps, lag=config.VEL_LAG_FRAMES):
+    """(x[t+lag] - x[t-lag]) * fps / (2*lag) along rows, the window clipped at the array ends.
+
+    Over one row, tracking jitter alone reads as several m/s; over 2*lag rows it mostly cancels.
+    NaN where row t itself or either window end is missing.
+    """
+    xy = np.asarray(xy, dtype=float)
+    n = len(xy)
+    if n < 2:
+        return np.full(xy.shape, np.nan)
+    t = np.arange(n)
+    lo = np.maximum(0, t - max(1, int(lag)))
+    hi = np.minimum(n - 1, t + max(1, int(lag)))
+    span = (hi - lo).astype(float).reshape((n,) + (1,) * (xy.ndim - 1))
+    v = (xy[hi] - xy[lo]) * fps / span
+    return np.where(np.isfinite(xy), v, np.nan)
+
+
+def _speed(xy, fps, lag=config.VEL_LAG_FRAMES):
+    return np.linalg.norm(centred_velocity(xy, fps, lag), axis=-1)
 
 
 def _missing_run(seen):

@@ -65,7 +65,7 @@ Output: a sparse list of candidate change events `(frame, team, confidence)` and
 
 ### 2.5 Temporal decoder (`pipeline/decode.py`) — the core
 Three states `H`, `A`, `D`, decoded **per half** with Viterbi (HMM), extended with minimum dwell times (semi-Markov or state-duplication trick):
-- Emissions: from §2.2–2.4 (calibrated probabilities, or a small classifier's outputs in v4).
+- Emissions: from §2.2–2.4 (calibrated probabilities, or a small classifier's outputs in v5).
 - Transitions: `H↔A` cheap only near a control event; `alive→D` driven by the dead-ball score; `D→H/A` decided by the restart cue (Smart Tagging team, otherwise first team to gain control after the restart).
 - Ball-missing frames: neutral emissions, so the state carries through ("loose ball → last team keeps it").
 - Minimum durations for `H`/`A` and `D` runs; final step merges micro-runs shorter than the minimum into neighbours.
@@ -91,7 +91,8 @@ Pure numpy; no new dependency needed.
 | v1 (done) | nearest player + majority ±50 | organiser floor, spellF1 0.2433 full match |
 | v2 | §2.1–2.3 + sticky possession with simple control rule + outside-halves `D` + no `X` | IDSSE CV ≥ v1 on IDSSE |
 | v3 | §2.4–2.5: HMM/semi-Markov decoder, Smart Tagging restart cues, parameters tuned on IDSSE | IDSSE CV > v2 by ≥ 0.04, or equal and simpler |
-| v4 (optional, only if time) | gradient-boosted frame classifier trained on degraded IDSSE, used as HMM emissions | IDSSE CV > v3 by ≥ 0.04 |
+| v4 | rules of the team document "Reglas de posesión" v0.2 (`pipeline/v4.py`): contacts (control runs + touches), confirmed sequences backdated to the first touch, restart team, set-piece and goal dead-ball cues | IDSSE CV > v2 by ≥ 0.04, or equal and simpler |
+| v5 (optional, only if time) | gradient-boosted frame classifier trained on degraded IDSSE, used as HMM emissions | IDSSE CV > best of v2–v4 by ≥ 0.04 |
 
 The final choice uses IDSSE CV plus the BAR-ATH sanity checks below. Running the public window is allowed as a **correctness check** (does the file score, do the boundaries look misaligned by a constant offset?). It never chooses between versions.
 
@@ -140,5 +141,6 @@ How to run and hand these off, batches and setup: [`09-claude-code-playbook.md`]
 - **T6 v2.** Sticky possession + control rule + outside-halves `D` + 2nd-half pre-kick-off `D` + no `X`; `make_submission.py --version v2`; `pipeline/report.py` sanity numbers. Acceptance: CV ≥ v1 on degraded IDSSE; deterministic sha256.
 - **T7 Smart Tagging cues.** Parse with `starter/load_smart_tagging.py`; restart events `(frame, team|None)`.
 - **T8 Decoder v3.** `decode.py` Viterbi with minimum dwell per half; grid search of decoder parameters on IDSSE CV only. Acceptance: CV table + chosen setting in the decisions log.
-- **T9 (optional) v4 classifier** on degraded IDSSE (scikit-learn or LightGBM, pinned), used as emissions.
+- **T8b v4 rules (done, untuned).** `pipeline/v4.py` from the team's "Reglas de posesión" v0.2; `--version v4`; V4_GRID in `tune_decoder.py`. Acceptance: IDSSE CV table v1–v4 in the decisions log.
+- **T9 (optional) v5 classifier** on degraded IDSSE (scikit-learn or LightGBM, pinned), used as emissions.
 - **T10 Reproducibility.** Pin all used dependencies, README "Reproduce" updated, clean-clone run instructions, final technical document filled from the decisions log.

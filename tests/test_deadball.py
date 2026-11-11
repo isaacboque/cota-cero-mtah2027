@@ -26,15 +26,19 @@ def test_features_distances_and_counts():
 
 
 def test_features_speed_and_missing_run():
-    n = 6
+    n = 12
     ball = np.zeros((n, 2))
     ball[:, 0] = np.arange(n) * 0.4  # 0.4 m/frame = 10 m/s
-    seen = np.array([1, 1, 0, 0, 1, 1], bool)
+    seen = np.ones(n, bool)
+    seen[[6, 7]] = False
     ball[~seen] = np.nan
     f = features.compute_features(_d(n, ball=ball, seen=seen))
-    assert np.isclose(f["ball_speed"][1], 10.0)
-    assert np.isnan(f["ball_speed"][2]) and np.isnan(f["ball_speed"][4])
-    assert f["missing_run"].tolist() == [0, 0, 1, 2, 0, 0]
+    assert np.isclose(f["ball_speed"][2], 10.0)        # centred: rows 0 and 5
+    assert np.isclose(f["ball_speed"][0], 10.0)        # window clipped at the start: rows 0 and 3
+    assert np.isclose(f["ball_speed"][11], 10.0)       # ... and at the end: rows 8 and 11
+    assert np.isnan(f["ball_speed"][6])                # the row itself is missing
+    assert np.isnan(f["ball_speed"][4])                # window end (row 7) is missing
+    assert f["missing_run"].tolist() == [0] * 6 + [1, 2] + [0] * 4
 
 
 def test_features_oob_with_margin():

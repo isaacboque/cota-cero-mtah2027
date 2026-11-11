@@ -60,13 +60,65 @@ def test_j03wpy():
     assert all((d["gt_codes"] == c).sum() > 0 for c in (0, 1, 2))
 
 
-def test_parsed_match_cache_roundtrip(tmp_path):
-    import numpy as np
-    d = {"ball_xy": np.array([[1.0, np.nan]]), "ball_seen": np.array([True]),
-         "gt_codes": np.array([0], dtype=np.int8), "halves": np.array([[1, 0, 0]]),
-         "fps": np.array(25.0)}
-    idsse.save_cache(d, str(tmp_path), "ZZZ")
-    out = idsse.load_idsse("ZZZ", str(tmp_path))  # no raw files present: must come from the cache
-    assert set(out) == set(d)
-    for k in d:
-        assert np.array_equal(out[k], d[k], equal_nan=True)
+def test_load_idsse_parses_once_then_reads_cache(tmp_path, monkeypatch):
+    calls = []
+
+    def fake_raw(match_id, cache_dir):
+        calls.append(match_id)
+        return idsse.from_dataset(_fake())
+
+    monkeypatch.setattr(idsse, "_load_raw", fake_raw)
+    first = idsse.load_idsse("J03WPY", str(tmp_path))
+    second = idsse.load_idsse("J03WPY", str(tmp_path))
+    assert calls == ["J03WPY"]                      # the slow parse ran once
+    assert idsse.cache_path("J03WPY", str(tmp_path)).endswith("J03WPY_arrays_v1.npz")
+    assert set(first) == set(second)
+    for k in first:
+        np.testing.assert_array_equal(first[k], second[k])
+    assert not list(tmp_path.glob("*.tmp.npz"))
+
+
+def test_load_idsse_rebuilds_cache_when_xml_is_newer(tmp_path, monkeypatch):
+    import os
+    import time
+    calls = []
+    monkeypatch.setattr(idsse, "_load_raw",
+                        lambda m, c: calls.append(m) or idsse.from_dataset(_fake()))
+    idsse.load_idsse("J03WPY", str(tmp_path))
+    xml = tmp_path / "J03WPY_tracking.xml"
+    xml.write_text("<new/>")
+    later = time.time() + 10
+    os.utime(xml, (later, later))
+    idsse.load_idsse("J03WPY", str(tmp_path))
+    assert calls == ["J03WPY", "J03WPY"]
+
+
+def _codes(*runs):
+    return np.concatenate([np.full(n, c, dtype=np.int8) for c, n in runs])
+
+
+def test_filter_absorbs_short_flick_into_previous_owner():
+    gt = _codes((0, 50), (1, 10), (0, 50))
+    out = idsse.filter_owner_flicks(gt, np.array([[1, 0, len(gt) - 1]]), min_frames=25)
+    assert (out == 0).all()
+    assert gt[55] == 1  # input untouched
+
+
+def test_filter_keeps_long_changes_and_dead_and_unknown():
+    gt = _codes((0, 30), (1, 30), (2, 5), (-1, 5), (1, 30))
+    out = idsse.filter_owner_flicks(gt, np.array([[1, 0, len(gt) - 1]]), min_frames=25)
+    assert (out == gt).all()
+
+
+def test_filter_short_run_at_stretch_start_takes_next_owner():
+    gt = _codes((2, 10), (1, 10), (0, 40), (2, 10))
+    out = idsse.filter_owner_flicks(gt, np.array([[1, 0, len(gt) - 1]]), min_frames=25)
+    assert (out[10:60] == 0).all() and (out[:10] == 2).all() and (out[60:] == 2).all()
+
+
+def test_filter_leaves_all_short_stretch_alone_and_respects_halves():
+    gt = _codes((0, 10), (1, 10), (2, 5), (0, 40), (1, 10))
+    halves = np.array([[1, 0, 64], [2, 65, 74]])  # last run is its own half
+    out = idsse.filter_owner_flicks(gt, halves, min_frames=25)
+    assert (out[:20] == gt[:20]).all()  # no long run in that stretch: unchanged
+    assert (out[65:] == 1).all()  # not absorbed across the half boundary

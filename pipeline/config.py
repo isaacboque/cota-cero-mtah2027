@@ -52,3 +52,23 @@ W_SLOW = 0.6              # TUNE: score weight of rule 2
 W_MISSING_STATIC = 0.6    # TUNE: score weight of rule 3
 DEAD_THRESHOLD = 0.5      # TUNE: score at or above this = dead
 KICKOFF_2ND = 113742      # ORGANISER: FAQ, 2nd-half kick-off video frame (graded D from 110808 until then)
+
+# v4 (pipeline/v4.py). DOC = team document "Reglas de posesion" draft v0.2, section given.
+# Also uses R_CTRL_M, V_CTRL_MS, T_CTRL_FRAMES (control), the dead-ball constants above and DEAD_THRESHOLD.
+# NO-IDSSE = IDSSE has no Smart Tagging, so the leave-one-match-out grid cannot tune it; it keeps
+# the value justified here and is reported as such in the technical document.
+VEL_LAG_FRAMES = 3        # TUNE: frames each side used to measure ball velocity before/after a row (0.12 s)
+DV_TOUCH_MS = 4.0         # TUNE: ball velocity change that is a touch when a player is within R_CTRL_M (DOC 3 "el balon va con el"); above position-noise level
+TOUCH_MERGE_FRAMES = 2    # TUNE: same-team contacts this close are one contact
+SEQ_GAP_S = 3.0           # TUNE: same-team contacts this close form one sequence: a pass that reaches a teammate (DOC 3 "pase al primer toque")
+GAP_PLACEMENT = "reappear"  # TUNE: change hidden in a ball-missing gap goes "reappear" (DOC 8, simplest) or "midpoint" (DOC 10.4)
+GAP_MIN_S = 0.4           # TUNE: missing run shorter than this is not treated as a hiding gap ("midpoint" only)
+STATIC_MIN_S = 1.5        # TUNE: ball seen and static this long = placed for a restart (DOC 6, "balon quieto en un sitio tipico")
+W_STATIC = 0.3            # DOC 6: below DEAD_THRESHOLD alone on purpose, a goalkeeper holding the ball is in play
+W_CUE = 0.3               # DOC 6 + NO-IDSSE: Smart Tagging set piece nearby; below DEAD_THRESHOLD alone (evidence, not truth)
+CUE_WINDOW_S = 5.0        # ORGANISER (starter/01_smart_tagging.ipynb: tags are ~5 s windows that open ~3.5 s before the restart) + NO-IDSSE
+RESTART_MAX_EXT_S = 5.0   # TUNE: longest a dead run is extended while the ball stays static (BALL_STATIC_MS) waiting for the restart (DOC 7)
+R_TAKER_M = 3.0           # TUNE: restarting team = nearest player within this at the restart (DOC 7, throw-ins are tagged N/A)
+TAKER_WINDOW_S = 1.0      # TUNE: how long after the restart the taker is searched for
+GOAL_MAX_S = 180.0        # RULE + NO-IDSSE: a kick-off cue later than this after a goal cue is not its restart
+MIN_RUN_FRAMES = 5        # TUNE: H/A runs shorter than this inside a live stretch join the previous team (0.2 s)

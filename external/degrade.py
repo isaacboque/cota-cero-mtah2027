@@ -4,10 +4,13 @@ Operates on the array dict of pipeline.data / external.idsse. Never touches `gt_
 `slot_team` or `fps`. Fully deterministic for a given (params, seed).
 
 Steps, in order:
-  1. ball dropout on ALIVE frames in contiguous gaps, gap lengths drawn from a histogram, until the
-     missing share of alive frames reaches `target_missing` (last gap truncated to land on it);
+  1. ball dropout on GRADED frames (rows inside the halves, alive or dead) in contiguous gaps, gap
+     lengths drawn from a histogram, until the missing share of graded frames reaches
+     `target_missing` (last gap truncated to land on it). DATA.md states the 41 % over graded frames,
+     and on BAR-ATH alive frames cannot be told apart without the ground truth;
   2. Gaussian position noise (sigma in metres) on every visible ball and player position;
-  3. player slots randomly dropped (down to `target_visible_slots` per frame if given, else
+  3. optional cross-team identity swaps (`swap_start_rate`, `swap_len_frames`; off by default);
+  4. player slots randomly dropped (down to `target_visible_slots` per frame if given, else
      `drop_prob`) and duplicated (a slot takes another same-team slot's position, `dup_prob`).
 
 DEFAULT_PARAMS are placeholders from organiser docs (DATA.md: ball missing on 41 % of graded
@@ -19,17 +22,61 @@ import numpy as np
 # Source of each value: target_missing = DATA.md (41 % of graded frames); target_visible_slots =
 # 08-model-plan.md section 1 (~20.5 visible); noise_sigma_m, dup_prob, gap_* = placeholders to be
 # replaced by degrade_params.json (aggregate BAR-ATH input stats, computed by a human).
+#
+# Position noise: if `player_jitter_m` / `ball_jitter_m` are given (the BAR-ATH frame-to-frame jitter
+# measured by barath_gap_stats.py), only the noise IDSSE is missing is added:
+# sqrt(max(0, target^2 - own^2)), own = jitter_sigma() of the clean input. Otherwise `noise_sigma_m`
+# is added as is. Its default is 0: an unmeasured 0.3 m of independent per-frame noise made every
+# 1-frame velocity useless (10+ m/s of fake speed) and broke v2/v3 in the first IDSSE run (11 Nov).
 DEFAULT_PARAMS = {
     "target_missing": 0.41,
     "gap_bins": [1, 5, 25, 125, 625, 3125],      # frame-length bin edges [lo, hi)
     "gap_weights": [0.20, 0.25, 0.25, 0.20, 0.10],  # relative frequency of gaps per bin
-    "noise_sigma_m": 0.3,
-    "noise_corr_frames": 50,  # noise is a moving average over this many frames (2 s); 1 = white noise
+    "noise_sigma_m": 0.0,
+    "player_jitter_m": None,
+    "ball_jitter_m": None,
+    "noise_corr_frames": 50,  # used only with noise_sigma_m > 0 (no jitter targets): moving average over this many frames; 1 = white
     "target_visible_slots": 20.5,
     "drop_prob": 0.0,
     "dup_prob": 0.02,
+    "swap_start_rate": 0.0,   # per slot-frame; > 0 only from barath_gap_stats (track_jump_rate)
+    "swap_len_frames": 50,    # placeholder: 2 s per identity swap
 }
 _PASSTHROUGH = ("gt_codes", "halves", "slot_team", "fps")
+
+
+def jitter_sigma(xy):
+    """Robust per-frame position noise (m) from second differences along rows.
+
+    For independent noise of sigma per coordinate, x[t+1] - 2x[t] + x[t-1] has std sqrt(6)*sigma,
+    while real motion adds only acceleration/fps^2 (a few mm at 25 fps). The median absolute
+    deviation keeps kicks and track swaps from inflating it. 0.0 if there is too little data.
+    """
+    xy = np.asarray(xy, dtype=float)
+    if len(xy) < 3:
+        return 0.0
+    d2 = xy[2:] - 2.0 * xy[1:-1] + xy[:-2]
+    v = d2[np.isfinite(d2)]
+    if v.size < 10:
+        return 0.0
+    mad = np.median(np.abs(v - np.median(v)))
+    return float(1.4826 * mad / np.sqrt(6.0))
+
+
+def _added_sigma(target, own, fallback):
+    if target is None:
+        return float(fallback)
+    return float(np.sqrt(max(0.0, float(target) ** 2 - own ** 2)))
+
+
+def _graded(d):
+    n = len(d["ball_seen"])
+    if "halves" not in d:
+        return np.ones(n, dtype=bool)
+    inside = np.zeros(n, dtype=bool)
+    for _, a, b in np.asarray(d["halves"]).reshape(-1, 3):
+        inside[int(a):int(b) + 1] = True
+    return inside
 
 
 def load_params(path):
@@ -42,13 +89,6 @@ def load_params(path):
     with open(path) as fh:
         raw = json.load(fh)
     return {k: v for k, v in raw.items() if k in DEFAULT_PARAMS}
-
-
-def _alive(d):
-    if "gt_codes" in d:
-        g = np.asarray(d["gt_codes"])
-        return (g == 0) | (g == 1)
-    return np.ones(len(d["ball_seen"]), dtype=bool)
 
 
 def _noise(shape, sigma, corr, rng):
@@ -64,7 +104,7 @@ def _noise(shape, sigma, corr, rng):
 
 
 def _drop_ball(d, out, params, rng):
-    alive = _alive(d)
+    alive = _graded(d)  # rows eligible for dropout
     seen = out["ball_seen"]
     n_alive = int(alive.sum())
     if n_alive == 0:
@@ -90,6 +130,7 @@ def _drop_ball(d, out, params, rng):
             rows = rows[: int(np.searchsorted(csum, need)) + 1]
             new = alive[rows] & seen[rows]
         missing += int(new.sum())
+        rows = rows[alive[rows]]
         seen[rows] = False
         out["ball_xy"][rows] = np.nan
         out["ball_speed"][rows] = np.nan
@@ -110,11 +151,16 @@ def degrade(d, params=None, seed=0):
 
     _drop_ball(d, out, p, rng)
 
-    sigma = float(p["noise_sigma_m"])
-    if sigma > 0:
-        corr = p["noise_corr_frames"]
-        out["ball_xy"] += _noise(out["ball_xy"].shape, sigma, corr, rng)  # NaN stays NaN
-        out["players_xy"] += _noise(out["players_xy"].shape, sigma, corr, rng)
+    sigma_ball = _added_sigma(p.get("ball_jitter_m"), jitter_sigma(d["ball_xy"]), p["noise_sigma_m"])
+    sigma_pl = _added_sigma(p.get("player_jitter_m"), jitter_sigma(d["players_xy"]), p["noise_sigma_m"])
+    # measured jitter targets -> add the missing white jitter; otherwise noise_sigma_m (default 0)
+    # with main's temporal correlation (noise_corr_frames)
+    corr_b = 1 if p.get("ball_jitter_m") is not None else p.get("noise_corr_frames", 1)
+    corr_p = 1 if p.get("player_jitter_m") is not None else p.get("noise_corr_frames", 1)
+    if sigma_ball > 0:
+        out["ball_xy"] += _noise(out["ball_xy"].shape, sigma_ball, corr_b, rng)  # NaN stays NaN
+    if sigma_pl > 0:
+        out["players_xy"] += _noise(out["players_xy"].shape, sigma_pl, corr_p, rng)
 
     pl, ps = out["players_xy"], out["players_speed"]
     n, s = pl.shape[:2]
@@ -131,6 +177,18 @@ def degrade(d, params=None, seed=0):
     dup_sp = ps[rows, src]
     pl = np.where(dup[..., None], dup_xy, pl)
     ps = np.where(dup, dup_sp, ps)
+    # team swaps: from a random start, a slot shows a random opponent's track for swap_len_frames
+    # (an identity switch across teams; switches within a team do not change team-level control)
+    rate = float(p.get("swap_start_rate") or 0.0)
+    if rate > 0:
+        length = int(p.get("swap_len_frames", 50))
+        for f, sl in zip(*np.nonzero(rng.random((n, s)) < rate)):
+            opp = np.flatnonzero(team != team[sl])
+            if len(opp) == 0:
+                continue
+            o = opp[rng.integers(0, len(opp))]
+            pl[f:f + length, sl] = pl[f:f + length, o]
+            ps[f:f + length, sl] = ps[f:f + length, o]
     # drops
     drop_prob = float(p["drop_prob"])
     tv = p.get("target_visible_slots")

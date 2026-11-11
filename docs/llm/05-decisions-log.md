@@ -76,6 +76,62 @@ Template:
 - Compliance check: no BAR-ATH data read or run.
 - Owner: Isaac
 
+## 2026-11-11 — First IDSSE run discarded; degradation and velocity fixes
+- Finding: the first `tune_decoder.py` run (degraded IDSSE) gave v1 0.19, v2 0.00, v3 0.02-0.024 for all 27 settings, v4 0.24-0.29 spellF1. v2's macroF1 0.2062 equals an all-D answer: no control run was ever detected. Two causes: (1) `degrade.py` added an unmeasured 0.3 m of independent noise per frame, which turns 1-frame velocities into 10+ m/s of fake speed, so `V_CTRL_MS` never held and the slowdown rule never fired; (2) `tune_decoder.py` never read `data/cache/degrade_params.json`, so the BAR-ATH gap statistics were not used. The v4 grid winner (`DV_TOUCH_MS`=6) is likely an artefact of that noise. **No parameter or version is chosen from that run.**
+- Decision:
+  - `features._speed` and `control._velocity` use a centred velocity over `2*VEL_LAG_FRAMES` rows (`features.centred_velocity`, window clipped at the ends), as v4 already did for touches.
+  - `barath_gap_stats.py` also writes `player_jitter_m` / `ball_jitter_m`: robust per-frame position noise from second differences (`degrade.jitter_sigma`, MAD / sqrt(6)). Run by a human; values never shown to an AI.
+  - `degrade.py` adds only the jitter IDSSE lacks, sqrt(max(0, target^2 - own^2)); without measured targets it adds none (`noise_sigma_m` default 0.3 -> 0.0).
+  - `tune_decoder.py` loads `degrade_params.json` and prints only whether it was found (never its values).
+- Source / justification: tracking noise model (independent per-frame noise: 2nd difference has std sqrt(6)*sigma); the failure analysis above. No BAR-ATH number was seen by anyone using an AI.
+- Data used to choose it: IDSSE run output (external) and synthetic tests (`tests/test_degrade.py`, `tests/test_v2.py::test_control_survives_realistic_tracking_jitter`).
+- Next: re-run `external/barath_gap_stats.py`, then `pipeline/tune_decoder.py` and `--raw`.
+- Compliance check: BAR-ATH statistics computed and kept by a human; IDSSE only for scoring.
+- Owner: Elena
+
+## 2026-11-11 — IDSSE array cache
+- Decision: `external/idsse.load_idsse` parses each match's XML with kloppy once and saves the arrays to `data/external/idsse/<id>_arrays_v1.npz` (gitignored); later loads read the cache. Rebuilt if the tracking XML is newer; `CACHE_VERSION` is bumped when `from_dataset` changes. Reason: `tune_decoder.py` reloads every match for every setting (41 settings x 7 matches).
+- Check on real data (run by a human, external data only): J03WPY loads with 146 211 frames, ball state known on every frame (H 51 192, A 30 268, D 64 751, unknown 0), ball seen on 100 % of frames, so degradation (T4) is required before tuning.
+- Data used to choose it: none; synthetic tests in `tests/test_idsse.py`.
+- Compliance check: IDSSE only (CC BY 4.0); no BAR-ATH data.
+- Owner: Elena
+
+## 2026-11-11 — v4: rules of "Reglas de posesión" v0.2 (T8b)
+- Decision: `pipeline/v4.py`. Rule by rule (sections of the team document):
+  - §3 contacts: a control run (`R_CTRL_M`, `V_CTRL_MS`, `T_CTRL_FRAMES`) or a touch (nearest player within `R_CTRL_M` while the ball's velocity changes by more than `DV_TOUCH_MS`). A ball passing a player at constant velocity is no contact: covers the aerial ball over a player (no height in the tracking) and a rival next to the ball who does not touch it (§5).
+  - §2/§4/§5 possession changes only on a confirmed sequence of the other team (consecutive same-team contacts within `SEQ_GAP_S`; confirmed by a control run or two contacts = pass to a teammate). Lone touches, deflections, rebounds back to the team in possession and long 50-50s never confirm.
+  - §8 the change is backdated to the first contact of the confirming sequence.
+  - §2/§5 ball not visible: possession unchanged, never D. §10.4 open: `GAP_PLACEMENT` = "reappear" (default) or "midpoint", chosen on IDSSE CV.
+  - §6 D: v2 detector + ball placed static (`STATIC_MIN_S`) with a Smart Tagging set piece within `CUE_WINDOW_S` (each cue alone below `DEAD_THRESHOLD`, so a goalkeeper holding the ball stays in play) + goal cue → D until the next kick-off cue.
+  - §7 a dead run lasts while the ball stays static (`BALL_STATIC_MS`, capped by `RESTART_MAX_EXT_S`); the restarting team gets the ball at once: Smart Tagging team, else the taker in the tracking (`R_TAKER_M`, throw-ins are tagged N/A), else the first team to confirm.
+  - §10.1/§10.2 (fouls, offside): no attempt to detect the whistle; possession is kept until the stoppage is visible in the tracking (Iker's proposal in the document).
+  - Never X; D outside the halves and before the 2nd-half kick-off (as v2).
+- Source / justification: team document "Reglas de posesión" v0.2 (10 Nov 2026; IFAB Laws 8 and 9, organiser CHALLENGE/RULES/EVALUATION/FAQ); `CUE_WINDOW_S` from the organisers' `starter/01_smart_tagging.ipynb` (tags open ~3.5 s before the restart). All other new constants are TUNE placeholders in `pipeline/config.py`. Constants marked NO-IDSSE (`W_CUE`, `CUE_WINDOW_S`, `GOAL_MAX_S`) cannot be tuned on IDSSE (no Smart Tagging) and keep their documented value.
+- Data used to choose it: none; 13 synthetic plays in `tests/test_v4.py`, one per rule. `V4_GRID` (12 settings) added to `pipeline/tune_decoder.py`; no IDSSE run yet. Until the CV table exists, v4 must not be shipped.
+- Naming: the classifier planned as "v4" in `08-model-plan.md` is renamed v5.
+- Compliance check: no BAR-ATH data read or run (v4 on BAR-ATH is generated by a human); no GT; no video; no constant tied to a frame of the provided game.
+- Owner: Elena
+
+## 2026-11-11 — Degradation noise after merging #16 into v4
+- Decision: `degrade.py` keeps both noise mechanisms. With measured jitter targets (`player_jitter_m` / `ball_jitter_m` from `barath_gap_stats.py`) it adds only the missing white jitter; otherwise it adds `noise_sigma_m` with #16's temporal correlation (`noise_corr_frames` = 50). Default `noise_sigma_m` = 0.0 (no unmeasured noise). The IDSSE cache is v4's versioned `<id>_arrays_v1.npz`; #16's `<id>_parsed.npz` files are no longer read. `tune_decoder.py` uses #16's `--degrade-params` / `degrade.load_params`.
+- Source / justification: parameters come from measurement only (`08-model-plan.md` section 3); ticket 2.1 of map #17 tests 0.1 / 0.3 m explicitly. Note: #16's CV table (v2 0.117) was produced with 0.3 m correlated noise and is not comparable with runs at the new default.
+- Data used to choose it: none (merge of two implementations); synthetic tests.
+- Compliance check: no BAR-ATH data read or run by an AI.
+- Owner: Elena
+
+## 2026-11-11 — Control redesign map: success criteria, filtered IDSSE labels, degradation fixes
+- Decision (map "Plan rediseño de control", issue #17; tickets #18, #19):
+  - Success criterion: spellF1 of the full pipeline on degraded IDSSE, leave-one-match-out, seeds 0/1/2; a difference is real only if > 0.04 and same sign on all seeds. Target v1 + 0.04 degraded and clean.
+  - Score against raw IDSSE labels and against filtered ones (`idsse.filter_owner_flicks`: owner runs < 25 frames = 1 s absorbed into the neighbouring owner); a change is accepted only if it passes on both.
+  - IDSSE `BallPossession` is never missing on alive frames (0 of 553 105, `external/idsse_flag_check.py`, aggregate counts only), so kloppy's "not 1 -> away" mapping does not affect IDSSE.
+  - `degrade.py`: ball dropout over graded frames (rows inside the halves), not only alive ones; optional cross-team identity swaps (`swap_start_rate`, `swap_len_frames`; off by default).
+  - `barath_gap_stats.py` (run by a human) also writes `input_stats` (step percentiles, visible slots per team, duplicate share, track-jump rate) and sets `dup_prob` and `swap_start_rate` from them.
+  - `external/control_experiments.py` runs the map's IDSSE experiments with explicit degradation parameters, never `degrade_params.json`.
+- Source / justification: organiser DATA.md (41 % of graded frames); evaluator `TAUS`; tickets #18/#19 decisions; 25 fps of IDSSE.
+- Data used to choose it: IDSSE only (CC BY 4.0) and synthetic tests.
+- Compliance check: no BAR-ATH data read or run by an AI; `barath_gap_stats.py` is run by a human and its JSON is never shown to an AI; no GT, no video, no public-window score.
+- Owner: Elena
+
 ## 2026-11-10 — Decoder v3 (T8)
 - Decision: `pipeline/decode.py` = Viterbi over H/A/D per half with minimum dwell (state duplication), emissions from the dead-ball score and control runs (neutral on ball-missing frames), H<->A cheap only near a control event, D->H/A guided by the Smart Tagging restart cue team (else first control), final merge of runs shorter than the minimum. `--version v3` in `make_submission.py`. `pipeline/tune_decoder.py` runs the leave-one-match-out grid on (degraded) IDSSE.
 - Source / justification: `08-model-plan.md` sections 2.5, 3, 4. All new constants (`MIN_DWELL_*`, `LOG_*`, `NEAR_EVENT_S`, `P_CTRL`, `DEAD_P_CLIP`) are untuned placeholders marked TUNE in `pipeline/config.py`; no CV run id exists yet.

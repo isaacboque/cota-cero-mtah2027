@@ -42,3 +42,17 @@ python evaluation/validate_submission.py submissions/<file>.csv
 - CSVs are written with LF endings (`pipeline/make_submission.py`); record sha256 in `SUBMISSIONS.md`.
 - Every modelling choice (window, threshold, feature) gets a line in `docs/llm/05-decisions-log.md` stating its source (organiser doc, external dataset, literature) — never "looked good on the public window".
 - Work on a branch, open a PR; fill in the PR template checklist.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues on `isaacboque/cota-cero-mtah2027` via the `gh` CLI; public, so no match data in issues. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: root `GLOSSARY.md` + `docs/adr/` (created lazily). See `docs/agents/domain.md`.

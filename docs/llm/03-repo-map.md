@@ -7,7 +7,14 @@ SUBMISSIONS.md              log: one row per CSV validated/uploaded (sha256, com
 games.py                    asset path resolver (only place that spells filenames)
 requirements*.txt           deps (-starter for notebooks)
 pipeline/
-  make_submission.py        our v1 generator; deterministic, LF CSV, prints sha256
+  make_submission.py        one command per version (--version v1..v4); deterministic, LF CSV, prints sha256
+  config.py                 every tunable constant, each with its source
+  data.py, features.py      ATD loader/cache; per-frame team-level features
+  deadball.py, control.py   dead-ball score; control runs
+  restarts.py               Smart Tagging restart cues (evidence, not truth)
+  v2.py, decode.py, v4.py   v2 sticky possession; v3 Viterbi decoder; v4 rules of "Reglas de posesión" v0.2
+  cv.py, tune_decoder.py    IDSSE leave-one-match-out scoring and grid (never BAR-ATH)
+  report.py                 sanity numbers for a label array
 evaluation/                 organisers' scorer (MIT, LICENSE-metrica-sports)
   run_evaluation.py         scores every CSV in evaluation/results/
   validate_submission.py    format/sanity check; run before any upload
