@@ -39,10 +39,10 @@ DEAD_P_CLIP = 0.02        # TUNE: clip of the dead-ball score before taking logs
 LOG_HARD = -50.0          # structural: alive emission on hard-D frames (outside halves / pre-kick-off)
 
 # Dead-ball detector (pipeline/deadball.py)
-OOB_MARGIN_M = 0.5        # RULE: ball is out when wholly over the line (ball radius ~0.11 m); margin absorbs tracking noise -> TUNE
+OOB_MARGIN_M = 0.25       # RULE: ball out when wholly over the line (radius ~0.11 m); margin absorbs tracking noise. IDSSE CV ctrl_deadstart_flat (ticket #23): 0 and 0.25 within 0.01; 0.25 kept for unmeasured BAR-ATH noise (#25)
 OOB_ENTER_FRAMES = 5      # TUNE: consecutive out-of-bounds frames before the hysteresis turns on
 OOB_EXIT_FRAMES = 10      # TUNE: consecutive in-bounds frames before it turns off
-SLOW_TEAM_SPEED_MS = 1.0  # TUNE: both teams' mean player speed under this = global slowdown
+SLOW_TEAM_SPEED_MS = 2.5  # both teams' MEDIAN player speed under this = global slowdown. IDSSE CV ctrl_deadstart_flat (ticket #23): flat 2.0-3.0, middle taken
 SLOW_MIN_S = 4.0          # TUNE: slowdown must last at least this long
 BALL_STATIC_MS = 1.0      # TUNE: ball slower than this counts as static
 MISSING_RUN_MIN_S = 3.0   # TUNE: ball-missing run at least this long can be a stoppage
@@ -68,6 +68,9 @@ W_STATIC = 0.3            # DOC 6: below DEAD_THRESHOLD alone on purpose, a goal
 W_CUE = 0.3               # DOC 6 + NO-IDSSE: Smart Tagging set piece nearby; below DEAD_THRESHOLD alone (evidence, not truth)
 CUE_WINDOW_S = 5.0        # ORGANISER (starter/01_smart_tagging.ipynb: tags are ~5 s windows that open ~3.5 s before the restart) + NO-IDSSE
 RESTART_MAX_EXT_S = 5.0   # TUNE: longest a dead run is extended while the ball stays static (BALL_STATIC_MS) waiting for the restart (DOC 7)
+RESTART_KICK_MS = None    # TUNE (ticket #23): a dead run ends when the ball moves faster than this (struck); None = BALL_STATIC_MS (old rule)
+INTERP_MAX_GAP_FRAMES = 0  # TUNE (ticket #22): ball gaps up to this many frames are interpolated linearly; 0 = off
+BALL_SMOOTH_FRAMES = 0     # TUNE (ticket #21): Savitzky-Golay window (order 2) on the ball; 0 = off; literature: 7
 R_TAKER_M = 3.0           # TUNE: restarting team = nearest player within this at the restart (DOC 7, throw-ins are tagged N/A)
 TAKER_WINDOW_S = 1.0      # TUNE: how long after the restart the taker is searched for
 GOAL_MAX_S = 180.0        # RULE + NO-IDSSE: a kick-off cue later than this after a goal cue is not its restart
