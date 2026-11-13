@@ -1,6 +1,6 @@
 """IDSSE experiments for the "Plan rediseño de control" map (issue #17). External data only.
 
-    python external/control_experiments.py base|noise|touch|dead|deadstart|signal [--seeds 0 1 2] [--cache-dir ...]
+    python external/control_experiments.py base|noise|touch|dead|deadstart|deadnan|signal [--seeds 0 1 2] [--cache-dir ...]
 
 Degradation always uses explicit parameters (degrade.DEFAULT_PARAMS plus the overrides below),
 never data/cache/degrade_params.json: that file holds BAR-ATH statistics and must not feed a run
