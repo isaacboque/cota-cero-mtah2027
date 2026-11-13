@@ -39,6 +39,10 @@ def predictors(exp):
             prm = {"RESTART_KICK_MS": kick, "RESTART_MAX_EXT_S": ext}
             p["v4_kick{}_ext{}".format("-" if kick is None else int(kick), int(ext))] = (
                 lambda d, prm=prm: v4.predict_v4(d, kickoff_2nd=None, params=prm))
+    if exp == "deadnan":  # unknown ball speed while extending a dead run: static (current) or unknown
+        p = {"v4_nanstatic": lambda d: v4.predict_v4(d, kickoff_2nd=None),
+             "v4_nanunknown": lambda d: v4.predict_v4(d, kickoff_2nd=None,
+                                                      params={"RESTART_NAN_STATIC": False})}
     if exp == "deadstart":  # ticket #23: signals that START a dead run (pipeline/deadball.py)
         from pipeline import config
         # third pass: find the flat region of SLOW_TEAM_SPEED_MS (2 was the edge) at margin 0.25
@@ -114,7 +118,7 @@ def dead_breakdown(gt, pred, fps):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("exp", choices=("base", "noise", "touch", "dead", "deadstart", "signal"))
+    ap.add_argument("exp", choices=("base", "noise", "touch", "dead", "deadstart", "deadnan", "signal"))
     ap.add_argument("--seeds", type=int, nargs="+", default=[0, 1, 2])
     ap.add_argument("--tag", default="", help="suffix for the output file")
     ap.add_argument("--cache-dir", default=os.path.join(ROOT, "data", "external", "idsse"))
