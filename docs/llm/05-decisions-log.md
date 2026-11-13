@@ -194,3 +194,8 @@ Template:
 - Not run yet: IDSSE is not reachable from the cloud session (Hugging Face blocked by the proxy). To run on the PC: `python external/v4_diagnostics.py` and `python external/control_experiments.py deadnan`.
 - Compliance check: no BAR-ATH data or GT read or run; synthetic scenes in tests; IDSSE (CC BY 4.0) is the only data the new tools read.
 - Owner: Isaac (run and decision); code by Claude Code.
+- IDSSE results (run on the PC 2026-11-13, 7 matches, kloppy 3.18, filtered labels; run ids `external/results/v4_diag.csv`, `ctrl_deadnan.csv`):
+  - Missed reference changes by cause, share of all changes. Raw (1836 changes, 53.5% found): unconfirmed 21.7, confirmed_off 19.9, no_contact 5.0, in_dead 0, ball_unseen 0. Degraded (5508 changes, 29.2% found): ball_unseen 21.3, in_dead 19.3, unconfirmed 14.5, confirmed_off 12.8, no_contact 3.0.
+  - Reference-alive rows labelled D, share of alive rows. Raw: slow 0.5, oob 0.3, everything else 0.0. Degraded: missing_static 12.0, slow 9.3, oob 0.2, extension 0.1.
+  - `deadnan`, spellF1 / macroF1 / D share (reference D share 0.449). Degraded, nanstatic vs nanunknown: seed 0 0.4443/0.7592/0.552 vs 0.4284/0.7564/0.549; seed 1 0.4108/0.7600/0.535 vs 0.3912/0.7567/0.530; seed 2 0.4273/0.7530/0.552 vs 0.4097/0.7494/0.547. Raw (one seed): identical, 0.6242/0.9184/0.445.
+  - Decision: **keep `RESTART_NAN_STATIC = True`.** nanunknown loses 0.016 to 0.020 spellF1 on all three seeds (rule needs a gain above 0.04, or a lower D share with no spellF1 loss on any seed), and changes nothing on raw data.
