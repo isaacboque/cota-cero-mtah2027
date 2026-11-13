@@ -18,6 +18,17 @@ python pipeline/make_submission.py
 python evaluation/validate_submission.py submissions/cota-cero_v1.csv
 ```
 
+From a clean clone (Python 3.11 or 3.12; dependencies are pinned in `requirements.txt`):
+
+```bash
+git clone https://github.com/isaacboque/cota-cero-mtah2027 && cd cota-cero-mtah2027
+pip install -r requirements.txt pytest
+python -m pytest -q                                   # synthetic data only, no match data needed
+python pipeline/make_submission.py --version v4       # v1..v4; prints the sha256
+```
+
+Set `MTAH_DATA_DIR` if the assets are not in `data/tactical/`. The IDSSE experiments (`external/`, `pipeline/tune_decoder.py`) need `requirements-starter.txt` (kloppy 3.18.0) and IDSSE under `data/external/idsse/`. Method and rules: `docs/technical-document.md`; every decision with its source: `docs/llm/05-decisions-log.md`.
+
 The CSV is always written with LF line endings, so the sha256 printed by the first command is the same on Windows, macOS and Linux.
 
 ## Layout
