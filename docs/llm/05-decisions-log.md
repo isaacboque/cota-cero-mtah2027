@@ -186,3 +186,11 @@ Template:
 - Not done: the reference run on raw (undegraded) IDSSE was killed by memory pressure after 20 of 29 settings and is not part of this table.
 - Compliance check: external data only (IDSSE, CC BY 4.0); no BAR-ATH data read or run; the only BAR-ATH-derived input is the aggregate `degrade_params.json`, produced by a human and never printed; no GT used.
 - Owner: Isaac
+
+## 2026-11-13 — v4 diagnostics and the "deadnan" candidate (ticket #17, open questions)
+- What: `external/v4_diagnostics.py` splits, on IDSSE only, (1) the reference possession changes v4 misses by cause (in_dead, ball_unseen, no_contact, unconfirmed, confirmed_off) and (2) the reference-alive rows v4 labels D by cause (hard, oob, slow, missing_static, static_run, combined, extension, no_team). It answers the two "Not yet specified" questions of #17 (too few possessions; 55 % vs 45 % D). Output in `external/results/` (gitignored).
+- Found by reading the code: when a dead run is extended (§7), a seen row with unknown ball speed (NaN, within 3 rows of any ball gap) counted as "still static", while a gap whose reappearance speed is unknown already ends the run. A throw-in followed by a short gap was extended into live play (reproduced in `tests/test_v4_diagnostics.py`).
+- Change: new constant `RESTART_NAN_STATIC` (default `True` = old behaviour, so every version's output is unchanged) and experiment `python external/control_experiments.py deadnan` comparing `True` and `False`. Adopt `False` only if it passes the usual rule on IDSSE (degraded, seeds 0/1/2, > +0.04 spellF1 with the same sign, or a clear D-share fix with no spellF1 loss), never by the public window.
+- Not run yet: IDSSE is not reachable from the cloud session (Hugging Face blocked by the proxy). To run on the PC: `python external/v4_diagnostics.py` and `python external/control_experiments.py deadnan`.
+- Compliance check: no BAR-ATH data or GT read or run; synthetic scenes in tests; IDSSE (CC BY 4.0) is the only data the new tools read.
+- Owner: Isaac (run and decision); code by Claude Code.
