@@ -199,3 +199,9 @@ Template:
   - Reference-alive rows labelled D, share of alive rows. Raw: slow 0.5, oob 0.3, everything else 0.0. Degraded: missing_static 12.0, slow 9.3, oob 0.2, extension 0.1.
   - `deadnan`, spellF1 / macroF1 / D share (reference D share 0.449). Degraded, nanstatic vs nanunknown: seed 0 0.4443/0.7592/0.552 vs 0.4284/0.7564/0.549; seed 1 0.4108/0.7600/0.535 vs 0.3912/0.7567/0.530; seed 2 0.4273/0.7530/0.552 vs 0.4097/0.7494/0.547. Raw (one seed): identical, 0.6242/0.9184/0.445.
   - Decision: **keep `RESTART_NAN_STATIC = True`.** nanunknown loses 0.016 to 0.020 spellF1 on all three seeds (rule needs a gain above 0.04, or a lower D share with no spellF1 loss on any seed), and changes nothing on raw data.
+
+## 2026-11-13 — Ball-gap experiments "gapdead" and "taker" (rule written before the run)
+- What: two IDSSE grids in `external/control_experiments.py`, motivated by the diagnostics above. `gapdead`: the dead-ball rule "long ball-missing run that ends with a static ball" (`MISSING_RUN_MIN_S` 3 (current), 5, 8, 12; `W_MISSING_STATIC` 0.6 (current), 0.3, off) labelled 12.0% of alive rows D on degraded IDSSE. `taker`: `R_TAKER_M` x `TAKER_WINDOW_S`, aimed at the 19.3% of changes missed inside dead spells.
+- Adoption rule, fixed before running: adopt a setting only if filtered-label spellF1 beats the current setting by more than 0.01 on each of degraded seeds 0, 1 and 2, macroF1 is not lower by more than 0.005 on any seed, and raw IDSSE spellF1 is not lower by more than 0.005. Take the middle of a flat region, not the maximum. Otherwise keep the current constants.
+- Caveat: the degradation uses `degrade.DEFAULT_PARAMS` gap lengths, not BAR-ATH statistics (never fed to an AI run); a rule that only wins here may not carry over, so a win is reported with that caveat. IDSSE only; no BAR-ATH data, GT or public window.
+- Owner: Isaac (merge); code and run by Claude Code.

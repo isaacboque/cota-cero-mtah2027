@@ -1,6 +1,6 @@
 """IDSSE experiments for the "Plan rediseño de control" map (issue #17). External data only.
 
-    python external/control_experiments.py base|noise|touch|dead|deadstart|deadnan|signal [--seeds 0 1 2] [--cache-dir ...]
+    python external/control_experiments.py base|noise|touch|dead|deadstart|deadnan|signal|gapdead|taker [--seeds 0 1 2] [--cache-dir ...]
 
 Degradation always uses explicit parameters (degrade.DEFAULT_PARAMS plus the overrides below),
 never data/cache/degrade_params.json: that file holds BAR-ATH statistics and must not feed a run
@@ -25,6 +25,23 @@ from pipeline import cv, v2, v4  # noqa: E402
 
 V4_BEST_SO_FAR = {"DV_TOUCH_MS": 6.0, "SEQ_GAP_S": 3.0, "GAP_PLACEMENT": "midpoint"}
 DEAD_BINS_S = (0, 2, 10, 30, 1e9)  # dead-spell length bins (s) for the dead-ball breakdown
+
+
+def with_config(over, fn):
+    """Wrap `fn` so that `pipeline.config` constants in `over` hold during the call and are restored after
+    (pipeline/deadball.py reads config at call time)."""
+    from pipeline import config
+
+    def run(d):
+        old = {k: getattr(config, k) for k in over}
+        try:
+            for k, v in over.items():
+                setattr(config, k, v)
+            return fn(d)
+        finally:
+            for k, v in old.items():
+                setattr(config, k, v)
+    return run
 
 
 def predictors(exp):
@@ -79,6 +96,17 @@ def predictors(exp):
                     "nospeed_k25": dict(nosp, T_CTRL_FRAMES=25)}
         p = {"v4_" + k: (lambda d, prm=v: v4.predict_v4(d, kickoff_2nd=None, params=prm))
              for k, v in variants.items()}
+    if exp == "gapdead":  # diagnostics 2026-11-13: ball-missing run ending static labels 12% of alive rows D (degraded)
+        variants = {"base": {}, "off": {"W_MISSING_STATIC": 0.0}, "w0.3": {"W_MISSING_STATIC": 0.3},
+                    "mrun5": {"MISSING_RUN_MIN_S": 5.0}, "mrun8": {"MISSING_RUN_MIN_S": 8.0},
+                    "mrun12": {"MISSING_RUN_MIN_S": 12.0}}
+        p = {"v4_" + k: with_config(v, lambda d: v4.predict_v4(d, kickoff_2nd=None)) for k, v in variants.items()}
+    if exp == "taker":  # diagnostics 2026-11-13: changes missed inside dead spells; restarting team = nearest taker
+        from pipeline import config
+        p = {}
+        for r, w in itertools.product((2.0, config.R_TAKER_M, 5.0), (config.TAKER_WINDOW_S, 2.0, 4.0)):
+            prm = {"R_TAKER_M": r, "TAKER_WINDOW_S": w}
+            p["v4_r{}_w{}".format(r, w)] = lambda d, prm=prm: v4.predict_v4(d, kickoff_2nd=None, params=prm)
     if exp == "touch":
         p = {}
         for dv, gap in itertools.product((6.0, 8.0, 10.0, 12.0), ("reappear", "midpoint")):
@@ -118,7 +146,7 @@ def dead_breakdown(gt, pred, fps):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("exp", choices=("base", "noise", "touch", "dead", "deadstart", "deadnan", "signal"))
+    ap.add_argument("exp", choices=("base", "noise", "touch", "dead", "deadstart", "deadnan", "signal", "gapdead", "taker"))
     ap.add_argument("--seeds", type=int, nargs="+", default=[0, 1, 2])
     ap.add_argument("--tag", default="", help="suffix for the output file")
     ap.add_argument("--cache-dir", default=os.path.join(ROOT, "data", "external", "idsse"))
